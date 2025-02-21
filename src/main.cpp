@@ -3,7 +3,8 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <ast.hpp>
+#include "ast.hpp"
+#include "ir2asm.hpp"
 
 using namespace std;
 
@@ -34,7 +35,7 @@ int main(int argc, const char *argv[]) {
 
   // 输出解析得到的 AST, 其实就是个字符串
   // cout << *ast << endl;
-  ast->Dump();
+  // ast->Dump();
   auto ir = std::make_unique<std::string>();
   ast->GenerateIR(ir);
   // std::cout<<*ir;
@@ -43,6 +44,14 @@ int main(int argc, const char *argv[]) {
     output_file = fopen(output.c_str(), "w");
     if(output_file){
       fwrite(ir->c_str(), sizeof(char), ir->length(), output_file);
+      fclose(output_file);
+    }
+  } else if (mode == "-riscv") {
+    output_file = fopen(output.c_str(), "w");
+    if(output_file) {
+      auto asm_code = std::make_unique<std::string>();
+      IR_to_ASM(ir, asm_code);
+      fwrite(asm_code->c_str(), sizeof(char), asm_code->length(), output_file);
       fclose(output_file);
     }
   }

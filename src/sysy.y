@@ -42,8 +42,7 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt
-%type <int_val> Number
+%type <ast_val> FuncDef FuncType Block Stmt Number
 
 %%
 
@@ -74,7 +73,7 @@ FuncDef
   : FuncType IDENT '(' ')' Block {
     auto func_def_ast = new FuncDefAST();
     func_def_ast->func_type = std::unique_ptr<BaseAST>($1);
-    func_def_ast->ident = *std::unique_ptr<string>($2);
+    func_def_ast->IDENT = *std::unique_ptr<string>($2);
     func_def_ast->block = std::unique_ptr<BaseAST>($5);
     $$ = func_def_ast;
   }
@@ -85,7 +84,7 @@ FuncType
   : INT {
 
     auto func_type_ast = new FuncTypeAST();
-    func_type_ast->value = "int";
+    func_type_ast->TYPE_NAME = "int";
     $$ = func_type_ast;
   
   }
@@ -102,7 +101,7 @@ Block
 Stmt
   : RETURN Number ';' {
     auto stmt_ast = new StmtAST();
-    stmt_ast->number = $2;
+    stmt_ast->number = std::unique_ptr<BaseAST>($2);
     $$ = stmt_ast;
 
   }
@@ -110,7 +109,9 @@ Stmt
 
 Number
   : INT_CONST {
-    $$ = $1;
+    auto number_ast = new NumberAST();
+    number_ast->INT_CONST = $1;
+    $$ = number_ast;
   }
   ;
 

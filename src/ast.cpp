@@ -18,14 +18,14 @@ void CompUnitAST::GenerateIR(std::unique_ptr<std::string>& ir, int depth) const 
 void FuncDefAST::Dump(int depth) const {
   std::cout << indent(depth) << "FuncDefAST {\n";
   func_type->Dump(depth + 1);
-  std::cout << indent(depth + 1) << ident << ",\n";
+  std::cout << indent(depth + 1) << IDENT << ",\n";
   block->Dump(depth + 1);
   std::cout << indent(depth) << "}\n";
 }
 
 void FuncDefAST::GenerateIR(std::unique_ptr<std::string>& ir, int depth) const {
   // std::cout<<indent(depth)<<"fun @"<<ident<<"(): ";
-  ir->append(indent(depth)+"fun @"+ident+"(): ");
+  ir->append(indent(depth)+"fun @"+IDENT+"(): ");
   func_type->GenerateIR(ir, 0);
   // std::cout<<" {\n";
   // std::cout<<"%entry:\n";
@@ -37,13 +37,13 @@ void FuncDefAST::GenerateIR(std::unique_ptr<std::string>& ir, int depth) const {
 
 void FuncTypeAST::Dump(int depth) const {
   std::cout << indent(depth) << "FuncTypeAST {\n";
-  std::cout << indent(depth + 1) << value << "\n";
+  std::cout << indent(depth + 1) << TYPE_NAME << "\n";
   std::cout << indent(depth) << "},\n";
 }
 
 void FuncTypeAST::GenerateIR(std::unique_ptr<std::string>& ir, int depth) const {
   assert(depth==0);
-  assert(value == "int");
+  assert(TYPE_NAME == "int");
   // std::cout<<"i32";
   ir->append("i32");
 }
@@ -60,11 +60,23 @@ void BlockAST::GenerateIR(std::unique_ptr<std::string>& ir, int depth) const {
 
 void StmtAST::Dump(int depth) const {
   std::cout << indent(depth) << "StmtAST {\n";
-  std::cout << indent(depth + 1) << number << "\n";
+  // std::cout << indent(depth + 1) << number << "\n";
+  number->Dump(depth+1);
   std::cout << indent(depth) << "}\n";
 }
 
 void StmtAST::GenerateIR(std::unique_ptr<std::string>& ir, int depth) const {
   // std::cout<<indent(depth) <<"ret "<<number<<"\n";
-  ir->append(indent(depth)+"ret "+std::to_string(number)+"\n");
+  // ir->append(indent(depth)+"ret "+std::to_string(number)+"\n");
+  ir->append(indent(depth)+"ret ");
+  number->GenerateIR(ir, 0);
+  ir->append("\n");
+}
+
+void NumberAST::Dump(int depth) const {
+  std::cout<<indent(depth)<<"\n";
+}
+
+void NumberAST::GenerateIR(std::unique_ptr<std::string>& ir, int depth) const {
+  ir->append(std::to_string(INT_CONST));
 }
