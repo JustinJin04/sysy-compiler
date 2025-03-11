@@ -3,50 +3,66 @@
 #include <memory>
 #include <string>
 #include <cassert>
+#include <stack>
 
-
-enum class IRContextKind {
-  INT_CONST,
-  TEMP_COUNTER
-};
 
 class IRContext {
+  private:
+  // IRContextKind kind = IRContextKind::TEMP_COUNTER;
+  // 上一步解析后保存的Counter标号
+  int tempCounter = 0;
+  std::stack<std::string> st;
+  // 上一步解析的立即数
+  // int int_const = 0;
  public:
   int depth = 0;
 
-  std::string get_last_result() const {
-    if (kind == IRContextKind::INT_CONST) {
-      return std::to_string(int_const);
-    } else if (kind == IRContextKind::TEMP_COUNTER) {
-      return "%" + std::to_string(tempCounter);
-    } else {
-      assert(0);
-    }
-  }
-  std::string get_new_counter() const {
-    return "%"+std::to_string(tempCounter+1);
+  std::string get_new_counter() {
+    int retval = tempCounter;
+    tempCounter += 1;
+    return "%" + std::to_string(retval);
   }
 
-  void set_number(int number) {
-    kind = IRContextKind::INT_CONST;
-    int_const = number;
+  void push_result(std::string result) {
+    st.push(result);
   }
-  void set_counter(std::string counter) {
-    kind = IRContextKind::TEMP_COUNTER;
-    assert(counter[0] == '%');
-    tempCounter = std::stoi(counter.substr(1));
-  }
-  void set_counter(int counter_index) {
-    kind = IRContextKind::TEMP_COUNTER;
-    tempCounter = counter_index;
+  void push_result(int int_const) {
+    st.push(std::to_string(int_const));
   }
 
- private:
-  IRContextKind kind = IRContextKind::TEMP_COUNTER;
-  // 上一步解析后保存的Counter标号
-  int tempCounter = -1;
-  // 上一步解析的立即数
-  int int_const = 0;
+  // std::string get_last_result(int i=1);
+  std::string pop_last_result() {
+    std::string ret = st.top();
+    st.pop();
+    return ret;
+  }
+
+  // std::string get_last_result() const {
+  //   if (kind == IRContextKind::INT_CONST) {
+  //     return std::to_string(int_const);
+  //   } else if (kind == IRContextKind::TEMP_COUNTER) {
+  //     return "%" + std::to_string(tempCounter);
+  //   } else {
+  //     assert(0);
+  //   }
+  // }
+  // std::string get_new_counter() const {
+  //   return "%"+std::to_string(tempCounter+1);
+  // }
+
+  // void set_number(int number) {
+  //   kind = IRContextKind::INT_CONST;
+  //   int_const = number;
+  // }
+  // void set_counter(std::string counter) {
+  //   kind = IRContextKind::TEMP_COUNTER;
+  //   assert(counter[0] == '%');
+  //   tempCounter = std::stoi(counter.substr(1));
+  // }
+  // void set_counter(int counter_index) {
+  //   kind = IRContextKind::TEMP_COUNTER;
+  //   tempCounter = counter_index;
+  // }
 };
 
 class BaseAST;
@@ -133,11 +149,11 @@ enum class ExpASTKind {
   AddExp
 };
 
-
 class ExpAST : public BaseAST {
  public:
-  ExpASTKind kind
+  ExpASTKind kind;
   std::unique_ptr<BaseAST> unaryexp;
+  std::unique_ptr<BaseAST> addexp;
   void Dump(int depth = 0) const override;
 
   void GenerateIR(std::unique_ptr<std::string>& ir,
@@ -183,6 +199,67 @@ class UnaryOpAST : public BaseAST {
  public:
   UnaryOpKind kind;
 
+  void Dump(int depth = 0) const override;
+
+  void GenerateIR(std::unique_ptr<std::string>& ir,
+                  IRContext& ctx) const override;
+};
+
+enum class MulExpKind {
+  UnaryExp,
+  BinaryExp
+};
+class MulExpAST : public BaseAST {
+ public:
+  MulExpKind kind;
+  std::unique_ptr<BaseAST> unaryexp;
+  std::unique_ptr<BaseAST> mulexp;
+  std::unique_ptr<BaseAST> binarymulopast;
+
+  void Dump(int depth = 0) const override;
+
+  void GenerateIR(std::unique_ptr<std::string>& ir,
+                  IRContext& ctx) const override;
+};
+
+enum class BinaryMulOpKind {
+  Mul,
+  Div,
+  Mod
+};
+class BinaryMulOpAST : public BaseAST {
+ public:
+  BinaryMulOpKind kind;
+  void Dump(int depth = 0) const override;
+
+  void GenerateIR(std::unique_ptr<std::string>& ir,
+                  IRContext& ctx) const override;
+};
+
+enum class AddExpKind {
+  MulExp,
+  AddMulExp
+};
+class AddExpAST : public BaseAST {
+ public:
+  AddExpKind kind;
+  std::unique_ptr<BaseAST> mulexp;
+  std::unique_ptr<BaseAST> addexp;
+  std::unique_ptr<BaseAST> binaryaddopast;
+
+  void Dump(int depth = 0) const override;
+
+  void GenerateIR(std::unique_ptr<std::string>& ir,
+                  IRContext& ctx) const override;
+};
+
+enum class BinaryAddOpKind {
+  Add,
+  Sub
+};
+class BinaryAddOpAST : public BaseAST{
+ public:
+  BinaryAddOpKind kind;
   void Dump(int depth = 0) const override;
 
   void GenerateIR(std::unique_ptr<std::string>& ir,

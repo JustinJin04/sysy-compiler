@@ -71,7 +71,7 @@ void StmtAST::GenerateIR(std::unique_ptr<std::string>& ir, IRContext& ctx) const
   exp->GenerateIR(ir, ctx);
   // TODO: 默认当前最后一个temp counter就是返回值
   
-  ir->append(indent(ctx.depth)+"ret "+ctx.get_last_result());
+  ir->append(indent(ctx.depth)+"ret "+ctx.pop_last_result());
   ir->append("\n");
 }
 
@@ -81,7 +81,8 @@ void NumberAST::Dump(int depth) const {
 
 void NumberAST::GenerateIR(std::unique_ptr<std::string>& ir, IRContext& ctx) const {
   // ir->append(std::to_string(INT_CONST));
-  ctx.set_number(INT_CONST);
+  // ctx.set_number(INT_CONST);
+  ctx.push_result(INT_CONST);
 }
 
 void ExpAST::Dump(int depth) const {
@@ -89,7 +90,12 @@ void ExpAST::Dump(int depth) const {
 }
 
 void ExpAST::GenerateIR(std::unique_ptr<std::string>& ir, IRContext& ctx) const {
-  unaryexp->GenerateIR(ir, ctx);
+  // unaryexp->GenerateIR(ir, ctx);
+  if (kind == ExpASTKind::UnaryExp) {
+    unaryexp->GenerateIR(ir, ctx);
+  } else if (kind == ExpASTKind::AddExp) {
+    addexp->GenerateIR(ir, ctx);
+  }
 }
 
 void UnaryExpAST::Dump(int depth) const {
@@ -132,16 +138,18 @@ void UnaryOpAST::GenerateIR(std::unique_ptr<std::string>& ir, IRContext& ctx) co
     }
     case UnaryOpKind::Sub: {
       auto new_counter_str = ctx.get_new_counter();
-      auto last_result_str = ctx.get_last_result();
+      auto last_result_str = ctx.pop_last_result();
       ir->append(indent(ctx.depth)+new_counter_str+" = sub 0, "+last_result_str+"\n");
-      ctx.set_counter(new_counter_str);
+      // ctx.set_counter(new_counter_str);
+      ctx.push_result(new_counter_str);
       break;
     }
     case UnaryOpKind::LogicalNot: {
       auto new_counter_str = ctx.get_new_counter();
-      auto last_result_str = ctx.get_last_result();
+      auto last_result_str = ctx.pop_last_result();
       ir->append(indent(ctx.depth)+new_counter_str+" = eq "+last_result_str + ", 0\n");
-      ctx.set_counter(new_counter_str);
+      // ctx.set_counter(new_counter_str);
+      ctx.push_result(new_counter_str);
       break;
     }
     default:
@@ -149,3 +157,99 @@ void UnaryOpAST::GenerateIR(std::unique_ptr<std::string>& ir, IRContext& ctx) co
   }
 }
 
+void MulExpAST::Dump(int depth) const {
+  assert(0);
+}
+
+void MulExpAST::GenerateIR(std::unique_ptr<std::string>& ir, IRContext& ctx) const {
+  switch (kind) {
+    case MulExpKind::UnaryExp: {
+      unaryexp->GenerateIR(ir, ctx);
+      break;
+    }
+    case MulExpKind::BinaryExp: {
+      mulexp->GenerateIR(ir, ctx);
+      unaryexp->GenerateIR(ir, ctx);
+      binarymulopast->GenerateIR(ir, ctx);
+      break;
+    }
+    default:{
+      assert(0);
+    }
+  }
+}
+
+void BinaryMulOpAST::Dump(int depth) const {
+  assert(0);
+}
+
+void BinaryMulOpAST::GenerateIR(std::unique_ptr<std::string>& ir, IRContext& ctx) const {
+  auto unaryexp_name = ctx.pop_last_result();
+  auto mulexp_name = ctx.pop_last_result();
+  auto result_name = ctx.get_new_counter();
+  ctx.push_result(result_name);
+  switch (kind) {
+    case BinaryMulOpKind::Mul: {
+      ir->append(indent(ctx.depth) + result_name + " = mul " + mulexp_name + ", " + unaryexp_name + "\n");
+      break;
+    }
+    case BinaryMulOpKind::Div: {
+      ir->append(indent(ctx.depth) + result_name + " = div " + mulexp_name + ", " + unaryexp_name + "\n");
+      break;
+    }
+    case BinaryMulOpKind::Mod: {
+      ir->append(indent(ctx.depth) + result_name + " = rem " + mulexp_name + ", " + unaryexp_name + "\n");
+      break;
+    }
+    default: {
+      assert(0);
+    }
+  }
+}
+
+void AddExpAST::Dump(int depth) const {
+  assert(0);
+}
+
+void AddExpAST::GenerateIR(std::unique_ptr<std::string>& ir, IRContext& ctx) const {
+  switch (kind) {
+    case AddExpKind::MulExp: {
+      mulexp->GenerateIR(ir, ctx);
+      break;
+    }
+    case AddExpKind::AddMulExp: {
+      addexp->GenerateIR(ir, ctx);
+      mulexp->GenerateIR(ir, ctx);
+      binaryaddopast->GenerateIR(ir, ctx);
+      break;
+    }
+    default: {
+      assert(0);
+    }
+  }
+}
+
+void BinaryAddOpAST::Dump(int depth) const {
+  assert(0);
+}
+
+void BinaryAddOpAST::GenerateIR(std::unique_ptr<std::string>& ir, IRContext& ctx) const {
+  auto mul_name = ctx.pop_last_result();
+  auto add_name = ctx.pop_last_result();
+  auto result_name = ctx.get_new_counter();
+  ctx.push_result(result_name);
+
+  switch (kind) {
+    case BinaryAddOpKind::Add: {
+      ir->append(indent(ctx.depth) + result_name + " = add " + add_name + ", " + mul_name + "\n");
+      break;
+    }
+    case BinaryAddOpKind::Sub: {
+      ir->append(indent(ctx.depth) + result_name + " = sub " + add_name + ", " + mul_name + "\n");
+      break;
+    }
+    default: {
+      assert(0);
+    }
+  }
+}

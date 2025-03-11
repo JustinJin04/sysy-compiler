@@ -42,7 +42,7 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt Number Exp PrimaryExp UnaryExp UnaryOp MulExp AddExp
+%type <ast_val> FuncDef FuncType Block Stmt Number Exp PrimaryExp UnaryExp UnaryOp MulExp BinaryMulOp AddExp BinaryAddOp
 
 %%
 
@@ -118,7 +118,14 @@ Number
 Exp
   : UnaryExp {
     auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpASTKind::UnaryExp;
     exp_ast->unaryexp = std::unique_ptr<BaseAST>($1);
+    $$ = exp_ast;
+  }
+  | AddExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpASTKind::AddExp;
+    exp_ast->addexp = std::unique_ptr<BaseAST>($1);
     $$ = exp_ast;
   }
   
@@ -167,6 +174,68 @@ UnaryOp
     unaryop_ast->kind = UnaryOpKind::LogicalNot;
     $$ = unaryop_ast;
   }
+
+MulExp
+  : UnaryExp {
+    auto mulexp_ast = new MulExpAST();
+    mulexp_ast->kind = MulExpKind::UnaryExp;
+    mulexp_ast->unaryexp = std::unique_ptr<BaseAST>($1);
+    $$ = mulexp_ast;
+  }
+  | MulExp BinaryMulOp UnaryExp {
+    auto mulexp_ast = new MulExpAST();
+    mulexp_ast->kind = MulExpKind::BinaryExp;
+    mulexp_ast->mulexp = std::unique_ptr<BaseAST>($1);
+    mulexp_ast->binarymulopast = std::unique_ptr<BaseAST>($2);
+    mulexp_ast->unaryexp = std::unique_ptr<BaseAST>($3);
+    $$ = mulexp_ast;
+  }
+BinaryMulOp
+  : '*' {
+    auto binarymulop_ast = new BinaryMulOpAST();
+    binarymulop_ast->kind = BinaryMulOpKind::Mul;
+    $$ = binarymulop_ast;
+  }
+  | '/' {
+    auto binarymulop_ast = new BinaryMulOpAST();
+    binarymulop_ast->kind = BinaryMulOpKind::Div;
+    $$ = binarymulop_ast;
+  }
+  | '%' {
+    auto binarymulop_ast = new BinaryMulOpAST();
+    binarymulop_ast->kind = BinaryMulOpKind::Mod;
+    $$ = binarymulop_ast;
+  }
+
+
+AddExp
+  : MulExp {
+    auto addexp_ast = new AddExpAST();
+    addexp_ast->kind = AddExpKind::MulExp;
+    addexp_ast->mulexp = std::unique_ptr<BaseAST>($1);
+    $$ = addexp_ast;
+  }
+  | AddExp BinaryAddOp MulExp {
+    auto addexp_ast = new AddExpAST();
+    addexp_ast->kind = AddExpKind::AddMulExp;
+    addexp_ast->addexp = std::unique_ptr<BaseAST>($1);
+    addexp_ast->binaryaddopast = std::unique_ptr<BaseAST>($2);
+    addexp_ast->mulexp = std::unique_ptr<BaseAST>($3);
+    $$ = addexp_ast;
+  }
+BinaryAddOp
+  : '+' {
+    auto binaryaddop_ast = new BinaryAddOpAST();
+    binaryaddop_ast->kind = BinaryAddOpKind::Add;
+    $$ = binaryaddop_ast;
+  }
+  | '-' {
+    auto binaryaddop_ast = new BinaryAddOpAST();
+    binaryaddop_ast->kind = BinaryAddOpKind::Sub;
+    $$ = binaryaddop_ast;
+  }
+
+
 
 %%
 
