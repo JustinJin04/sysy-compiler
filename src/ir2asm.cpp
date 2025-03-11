@@ -1,5 +1,9 @@
 #include "ir2asm.hpp"
 #include <cassert>
+#include <iostream>
+#include <map>
+
+static BasicBlockContext GLOBAL_BASIC_BLOCK_CTX;
 
 static std::string indent(int space=2) {
   return std::string(space, ' ');
@@ -27,13 +31,17 @@ void visit(const koopa_raw_value_t& value, std::unique_ptr<std::string>& asm_cod
   const auto &kind = value->kind;
   switch (kind.tag) {
     case KOOPA_RVT_RETURN:
+      GLOBAL_BASIC_BLOCK_CTX.push_current_koopa_raw_value(value);
       visit(kind.data.ret, asm_code);
       break;
-    case KOOPA_RVT_INTEGER:
-      visit(kind.data.integer, asm_code);
-      break;
+    // case KOOPA_RVT_INTEGER:
+    //   visit(kind.data.integer, asm_code);
+    //   break;
     case KOOPA_RVT_BINARY:
+      // std::cout<<"visit binary "<<value<<" ";
+      GLOBAL_BASIC_BLOCK_CTX.push_current_koopa_raw_value(value);
       visit(kind.data.binary, asm_code);
+      break;
     default:
       assert(false);
   }
@@ -57,7 +65,7 @@ void visit(const koopa_raw_basic_block_t& block, std::unique_ptr<std::string>& a
     // asm_code->append(std::string(block->name)+":\n");
     // TODO: 如何处理带名字的block??
   }
-
+  GLOBAL_BASIC_BLOCK_CTX.reset();
   // visit all the instructions
   assert(block->insts.kind == KOOPA_RSIK_VALUE);
   for(int i=0;i<block->insts.len;++i){
@@ -66,23 +74,90 @@ void visit(const koopa_raw_basic_block_t& block, std::unique_ptr<std::string>& a
   }
 }
 
+void BasicBlockContext::prepare_operand(const koopa_raw_value_t& operand, std::unique_ptr<std::string>& asm_code) {
+  if(value_to_name(operand)){
+    return;
+  }
+  if (operand->kind.tag == koopa_raw_value_tag_t::KOOPA_RVT_INTEGER) {
+    auto int_const = operand->kind.data.integer.value;
+    // std::cout<<"debug "<<int_const<<"\n";
+    if (int_const == 0){
+      bind_value_temp_reg("x0", operand);
+    } else {
+      auto tmp_reg_name = alloc_new_temp_reg();
+      bind_value_temp_reg(tmp_reg_name, operand);
+      asm_code->append(indent() + "li " + tmp_reg_name + " ," + std::to_string(int_const) + "\n");
+    }
+  } else {
+    assert(0);
+  }
+}
+
+
+void BasicBlockContext::prepare_operand(const koopa_raw_value_t& operand, std::unique_ptr<std::string>& asm_code, std::string reg_name) {
+  auto orig_name = value_to_name(operand);
+  if(orig_name.has_value()){
+    if(*orig_name != reg_name) {
+      asm_code->append(indent() + "mv " + reg_name + ", " + *orig_name + "\n");
+      bind_value_temp_reg(reg_name, operand);
+    }
+    return;
+  }
+  if (operand->kind.tag == koopa_raw_value_tag_t::KOOPA_RVT_INTEGER) {
+    auto int_const = operand->kind.data.integer.value;
+    if (int_const == 0){
+      if (reg_name != "x0") {
+        asm_code->append(indent() + "mv " + reg_name + ", x0\n");
+        bind_value_temp_reg(reg_name, operand);
+      }
+    } else {
+      asm_code->append(indent() + "li " + reg_name + ", " + std::to_string(int_const) + "\n");
+      bind_value_temp_reg(reg_name, operand);
+    }
+  } else {
+    assert(0);
+  }
+}
+
 void visit(const koopa_raw_return_t& ret, std::unique_ptr<std::string>& asm_code) {
-  if(ret.value) {
-    assert(ret.value->kind.tag == KOOPA_RVT_INTEGER);
-    asm_code->append(indent()+"li a0, ");
-    visit(ret.value->kind.data.integer, asm_code);
-    asm_code->append("\n");
+  if (ret.value) {
+    GLOBAL_BASIC_BLOCK_CTX.prepare_operand(ret.value, asm_code, "a0");
   }
   asm_code->append(indent()+"ret\n");
 }
 
-void visit(const koopa_raw_integer_t& integer, std::unique_ptr<std::string>& asm_code) {
-  auto int_value = integer.value;
-  asm_code->append(std::to_string(int_value));
-}
-
 void visit(const koopa_raw_binary_t& binary, std::unique_ptr<std::string>& asm_code) {
-  // TODO
+  auto op = binary.op;
+  auto lhs = binary.lhs;
+  auto rhs = binary.rhs;
+
+  GLOBAL_BASIC_BLOCK_CTX.prepare_operand(lhs, asm_code);
+  GLOBAL_BASIC_BLOCK_CTX.prepare_operand(rhs, asm_code);
+
+  auto lreg_name = GLOBAL_BASIC_BLOCK_CTX.value_to_name(lhs);
+  auto rreg_name = GLOBAL_BASIC_BLOCK_CTX.value_to_name(rhs);
+  assert(lreg_name.has_value() && rreg_name.has_value());
+  // auto result_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+  // GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(result_reg_name);
+
+  switch (op) {
+    case koopa_raw_binary_op::KOOPA_RBO_EQ: {
+      // TODO: is reusing lreg rational?
+      asm_code->append(indent() + "xor " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      asm_code->append(indent() + "seqz " + *lreg_name + ", " + *lreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      break;
+    }
+    case KOOPA_RBO_SUB:{
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
+      asm_code->append(indent() + "sub " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      break;
+    }
+    default: {
+      assert(0);
+    }
+  }
 }
 
 

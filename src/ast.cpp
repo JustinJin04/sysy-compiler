@@ -140,7 +140,7 @@ void UnaryOpAST::GenerateIR(std::unique_ptr<std::string>& ir, IRContext& ctx) co
     case UnaryOpKind::LogicalNot: {
       auto new_counter_str = ctx.get_new_counter();
       auto last_result_str = ctx.get_last_result();
-      ir->append(indent(ctx.depth)+new_counter_str+" = eq 0, "+last_result_str+"\n");
+      ir->append(indent(ctx.depth)+new_counter_str+" = eq "+last_result_str + ", 0\n");
       ctx.set_counter(new_counter_str);
       break;
     }

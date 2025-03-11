@@ -127,8 +127,16 @@ class NumberAST : public BaseAST {
                   IRContext& ctx) const override;
 };
 
+
+enum class ExpASTKind {
+  UnaryExp,
+  AddExp
+};
+
+
 class ExpAST : public BaseAST {
  public:
+  ExpASTKind kind
   std::unique_ptr<BaseAST> unaryexp;
   void Dump(int depth = 0) const override;
 

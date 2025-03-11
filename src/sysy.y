@@ -42,7 +42,7 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt Number Exp PrimaryExp UnaryExp UnaryOp
+%type <ast_val> FuncDef FuncType Block Stmt Number Exp PrimaryExp UnaryExp UnaryOp MulExp AddExp
 
 %%
 
@@ -121,6 +121,7 @@ Exp
     exp_ast->unaryexp = std::unique_ptr<BaseAST>($1);
     $$ = exp_ast;
   }
+  
 
 PrimaryExp
   : '(' Exp ')' {
