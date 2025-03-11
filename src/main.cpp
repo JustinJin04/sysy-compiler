@@ -37,7 +37,8 @@ int main(int argc, const char *argv[]) {
   // cout << *ast << endl;
   // ast->Dump();
   auto ir = std::make_unique<std::string>();
-  ast->GenerateIR(ir);
+  IRContext ctx;
+  ast->GenerateIR(ir, ctx);
   // std::cout<<*ir;
   FILE* output_file;
   if(mode == "-koopa"){

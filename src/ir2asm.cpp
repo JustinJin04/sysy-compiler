@@ -32,6 +32,8 @@ void visit(const koopa_raw_value_t& value, std::unique_ptr<std::string>& asm_cod
     case KOOPA_RVT_INTEGER:
       visit(kind.data.integer, asm_code);
       break;
+    case KOOPA_RVT_BINARY:
+      visit(kind.data.binary, asm_code);
     default:
       assert(false);
   }
@@ -77,6 +79,10 @@ void visit(const koopa_raw_return_t& ret, std::unique_ptr<std::string>& asm_code
 void visit(const koopa_raw_integer_t& integer, std::unique_ptr<std::string>& asm_code) {
   auto int_value = integer.value;
   asm_code->append(std::to_string(int_value));
+}
+
+void visit(const koopa_raw_binary_t& binary, std::unique_ptr<std::string>& asm_code) {
+  // TODO
 }
 
 
