@@ -65,7 +65,7 @@ void visit(const koopa_raw_basic_block_t& block, std::unique_ptr<std::string>& a
     // asm_code->append(std::string(block->name)+":\n");
     // TODO: 如何处理带名字的block??
   }
-  GLOBAL_BASIC_BLOCK_CTX.reset();
+  GLOBAL_BASIC_BLOCK_CTX.reset(block);
   // visit all the instructions
   assert(block->insts.kind == KOOPA_RSIK_VALUE);
   for(int i=0;i<block->insts.len;++i){
