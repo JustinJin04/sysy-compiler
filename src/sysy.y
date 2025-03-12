@@ -17,6 +17,17 @@ void yyerror(std::unique_ptr<BaseAST> &ast, const char *s);
 
 using namespace std;
 
+
+// helper function for downcasting and wrap with unique_ptr
+template<typename TARGET>
+std::unique_ptr<TARGET> cast_uptr(BaseAST* base) {
+  TARGET* target = dynamic_cast<TARGET*>(base);
+  if (target == nullptr) {
+    throw std::runtime_error("cast_unique failed");
+  }
+  return std::unique_ptr<TARGET>(target);
+}
+
 %}
 
 // 定义 parser 函数和错误处理函数的附加参数
@@ -42,7 +53,9 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt Number Exp PrimaryExp UnaryExp UnaryOp MulExp BinaryMulOp AddExp BinaryAddOp
+%type <ast_val> FuncDef FuncType Block Stmt
+%type <int_val> Number
+%type <ast_val> Exp PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp
 
 %%
 
@@ -54,7 +67,7 @@ using namespace std;
 CompUnit
   : FuncDef {
     auto comp_unit = std::make_unique<CompUnitAST>();
-    comp_unit->func_def = std::unique_ptr<BaseAST>($1);
+    comp_unit->func_def = cast_uptr<FuncDefAST>($1);
     ast = std::move(comp_unit);
   }
   ;
@@ -72,9 +85,9 @@ CompUnit
 FuncDef
   : FuncType IDENT '(' ')' Block {
     auto func_def_ast = new FuncDefAST();
-    func_def_ast->func_type = std::unique_ptr<BaseAST>($1);
+    func_def_ast->func_type = cast_uptr<FuncTypeAST>($1);
     func_def_ast->IDENT = *std::unique_ptr<string>($2);
-    func_def_ast->block = std::unique_ptr<BaseAST>($5);
+    func_def_ast->block = cast_uptr<BlockAST>($5);
     $$ = func_def_ast;
   }
   ;
@@ -93,7 +106,7 @@ FuncType
 Block
   : '{' Stmt '}' {
     auto block_ast = new BlockAST();
-    block_ast->stmt = std::unique_ptr<BaseAST>($2);
+    block_ast->stmt = cast_uptr<StmtAST>($2);
     $$ = block_ast;
   }
   ;
@@ -101,141 +114,174 @@ Block
 Stmt
   : RETURN Exp ';' {
     auto stmt_ast = new StmtAST();
-    stmt_ast->exp = std::unique_ptr<BaseAST>($2);
+    stmt_ast->exp = cast_uptr<ExpAST>($2);
     $$ = stmt_ast;
 
   }
   ;
 
+Exp
+  : LOrExp {
+    $$ = $1;
+  }
+  
+PrimaryExp
+  : '(' Exp ')' {
+    $$ = $2;
+  }
+  | Number {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::NUMBER;
+    exp_ast->number = $1;
+    $$ = exp_ast;
+  }
+
 Number
   : INT_CONST {
-    auto number_ast = new NumberAST();
-    number_ast->INT_CONST = $1;
-    $$ = number_ast;
+    $$ = $1;
   }
   ;
 
-Exp
-  : UnaryExp {
-    auto exp_ast = new ExpAST();
-    exp_ast->kind = ExpASTKind::UnaryExp;
-    exp_ast->unaryexp = std::unique_ptr<BaseAST>($1);
-    $$ = exp_ast;
-  }
-  | AddExp {
-    auto exp_ast = new ExpAST();
-    exp_ast->kind = ExpASTKind::AddExp;
-    exp_ast->addexp = std::unique_ptr<BaseAST>($1);
-    $$ = exp_ast;
-  }
-  
-
-PrimaryExp
-  : '(' Exp ')' {
-    auto primaryexp_ast = new PrimaryExpAST();
-    primaryexp_ast->kind = PrimaryExpKind::Exp;
-    primaryexp_ast->exp = std::unique_ptr<BaseAST>($2);
-    $$ = primaryexp_ast;
-  }
-  | Number {
-    auto primaryexp_ast = new PrimaryExpAST();
-    primaryexp_ast->kind = PrimaryExpKind::Number;
-    primaryexp_ast->number = std::unique_ptr<BaseAST>($1);
-    $$ = primaryexp_ast;
-  }
-
 UnaryExp
   : PrimaryExp {
-    auto unaryexp_ast = new UnaryExpAST();
-    unaryexp_ast->kind = UnaryExpKind::Primary;
-    unaryexp_ast->primaryexp = std::unique_ptr<BaseAST>($1);
-    $$ = unaryexp_ast;
+    $$ = $1;
   }
-  | UnaryOp UnaryExp {
-    auto unaryexp_ast = new UnaryExpAST();
-    unaryexp_ast->kind = UnaryExpKind::UnaryOp;
-    unaryexp_ast->unaryop = std::unique_ptr<BaseAST>($1);
-    unaryexp_ast->unaryexp = std::unique_ptr<BaseAST>($2);
-    $$ = unaryexp_ast;
+  | '+' UnaryExp {
+    $$ = $2;
   }
-UnaryOp
-  : '+' {
-    auto unaryop_ast = new UnaryOpAST();
-    unaryop_ast->kind = UnaryOpKind::Add;
-    $$ = unaryop_ast;
+  | '-' UnaryExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::NEGATIVE;
+    exp_ast->rhs = cast_uptr<ExpAST>($2);
+    $$ = exp_ast;
   }
-  | '-' {
-    auto unaryop_ast = new UnaryOpAST();
-    unaryop_ast->kind = UnaryOpKind::Sub;
-    $$ = unaryop_ast;
-  }
-  | '!' {
-    auto unaryop_ast = new UnaryOpAST();
-    unaryop_ast->kind = UnaryOpKind::LogicalNot;
-    $$ = unaryop_ast;
+  | '!' UnaryExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::LOGICAL_NOT;
+    exp_ast->rhs = cast_uptr<ExpAST>($2);
+    $$ = exp_ast;
   }
 
 MulExp
   : UnaryExp {
-    auto mulexp_ast = new MulExpAST();
-    mulexp_ast->kind = MulExpKind::UnaryExp;
-    mulexp_ast->unaryexp = std::unique_ptr<BaseAST>($1);
-    $$ = mulexp_ast;
+    $$ = $1;
   }
-  | MulExp BinaryMulOp UnaryExp {
-    auto mulexp_ast = new MulExpAST();
-    mulexp_ast->kind = MulExpKind::BinaryExp;
-    mulexp_ast->mulexp = std::unique_ptr<BaseAST>($1);
-    mulexp_ast->binarymulopast = std::unique_ptr<BaseAST>($2);
-    mulexp_ast->unaryexp = std::unique_ptr<BaseAST>($3);
-    $$ = mulexp_ast;
+  | MulExp '*' UnaryExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::MUL;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($3);
+    $$ = exp_ast;
   }
-BinaryMulOp
-  : '*' {
-    auto binarymulop_ast = new BinaryMulOpAST();
-    binarymulop_ast->kind = BinaryMulOpKind::Mul;
-    $$ = binarymulop_ast;
+  | MulExp '/' UnaryExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::DIV;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($3);
+    $$ = exp_ast;
   }
-  | '/' {
-    auto binarymulop_ast = new BinaryMulOpAST();
-    binarymulop_ast->kind = BinaryMulOpKind::Div;
-    $$ = binarymulop_ast;
+  | MulExp '%' UnaryExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::REM;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($3);
+    $$ = exp_ast;
   }
-  | '%' {
-    auto binarymulop_ast = new BinaryMulOpAST();
-    binarymulop_ast->kind = BinaryMulOpKind::Mod;
-    $$ = binarymulop_ast;
-  }
-
 
 AddExp
   : MulExp {
-    auto addexp_ast = new AddExpAST();
-    addexp_ast->kind = AddExpKind::MulExp;
-    addexp_ast->mulexp = std::unique_ptr<BaseAST>($1);
-    $$ = addexp_ast;
+    $$ = $1;
   }
-  | AddExp BinaryAddOp MulExp {
-    auto addexp_ast = new AddExpAST();
-    addexp_ast->kind = AddExpKind::AddMulExp;
-    addexp_ast->addexp = std::unique_ptr<BaseAST>($1);
-    addexp_ast->binaryaddopast = std::unique_ptr<BaseAST>($2);
-    addexp_ast->mulexp = std::unique_ptr<BaseAST>($3);
-    $$ = addexp_ast;
+  | AddExp '+' MulExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::ADD;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($3);
+    $$ = exp_ast;
   }
-BinaryAddOp
-  : '+' {
-    auto binaryaddop_ast = new BinaryAddOpAST();
-    binaryaddop_ast->kind = BinaryAddOpKind::Add;
-    $$ = binaryaddop_ast;
-  }
-  | '-' {
-    auto binaryaddop_ast = new BinaryAddOpAST();
-    binaryaddop_ast->kind = BinaryAddOpKind::Sub;
-    $$ = binaryaddop_ast;
+  | AddExp '-' MulExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::SUB;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($3);
+    $$ = exp_ast;
   }
 
+RelExp
+  : AddExp {
+    $$ = $1;
+  }
+  | RelExp '<' AddExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::LT;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($3);
+    $$ = exp_ast;
+  }
+  | RelExp '>' AddExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::GT;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($3);
+    $$ = exp_ast;
+  }
+  | RelExp '<' '=' AddExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::LEQ;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($4);
+    $$ = exp_ast;
+  }
+  | RelExp '>' '=' AddExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::GEQ;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($4);
+    $$ = exp_ast;
+  }
 
+EqExp
+  : RelExp {
+    $$ = $1;
+  }
+  | EqExp '=' '=' RelExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::EQ;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($4);
+    $$ = exp_ast;
+  }
+  | EqExp '!' '=' RelExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::NEQ;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($4);
+    $$ = exp_ast;
+  }
+
+LAndExp
+  : EqExp {
+    $$ = $1;
+  }
+  | LAndExp '&' '&' EqExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::LAND;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($4);
+    $$ = exp_ast;
+  }
+
+LOrExp
+  : LAndExp {
+    $$ = $1;
+  }
+  | LOrExp '|' '|' LAndExp {
+    auto exp_ast = new ExpAST();
+    exp_ast->kind = ExpKind::LOR;
+    exp_ast->lhs = cast_uptr<ExpAST>($1);
+    exp_ast->rhs = cast_uptr<ExpAST>($4);
+    $$ = exp_ast;
+  }
 
 %%
 

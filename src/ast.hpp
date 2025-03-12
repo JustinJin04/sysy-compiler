@@ -37,42 +37,16 @@ class IRContext {
     return ret;
   }
 
-  // std::string get_last_result() const {
-  //   if (kind == IRContextKind::INT_CONST) {
-  //     return std::to_string(int_const);
-  //   } else if (kind == IRContextKind::TEMP_COUNTER) {
-  //     return "%" + std::to_string(tempCounter);
-  //   } else {
-  //     assert(0);
-  //   }
-  // }
-  // std::string get_new_counter() const {
-  //   return "%"+std::to_string(tempCounter+1);
-  // }
-
-  // void set_number(int number) {
-  //   kind = IRContextKind::INT_CONST;
-  //   int_const = number;
-  // }
-  // void set_counter(std::string counter) {
-  //   kind = IRContextKind::TEMP_COUNTER;
-  //   assert(counter[0] == '%');
-  //   tempCounter = std::stoi(counter.substr(1));
-  // }
-  // void set_counter(int counter_index) {
-  //   kind = IRContextKind::TEMP_COUNTER;
-  //   tempCounter = counter_index;
-  // }
 };
 
 class BaseAST;
-
 class CompUnitAST;
 class FuncDefAST;
 class FuncTypeAST;
 class BlockAST;
 class StmtAST;
-class NumberAST;
+class ExpAST;
+
 
 class BaseAST {
  public:
@@ -86,7 +60,7 @@ class BaseAST {
 
 class CompUnitAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> func_def;
+  std::unique_ptr<FuncDefAST> func_def;
 
   void Dump(int depth = 0) const override;
 
@@ -96,9 +70,9 @@ class CompUnitAST : public BaseAST {
 
 class FuncDefAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> func_type;
+  std::unique_ptr<FuncTypeAST> func_type;
   std::string IDENT;
-  std::unique_ptr<BaseAST> block;
+  std::unique_ptr<BlockAST> block;
 
   void Dump(int depth = 0) const override;
 
@@ -117,7 +91,7 @@ class FuncTypeAST : public BaseAST {
 
 class BlockAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> stmt;
+  std::unique_ptr<StmtAST> stmt;
 
   void Dump(int depth = 0) const override;
 
@@ -127,49 +101,48 @@ class BlockAST : public BaseAST {
 
 class StmtAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> exp;
+  std::unique_ptr<ExpAST> exp;
   void Dump(int depth = 0) const override;
 
   void GenerateIR(std::unique_ptr<std::string>& ir,
                   IRContext& ctx) const override;
 };
 
-class NumberAST : public BaseAST {
- public:
-  int INT_CONST;
-  void Dump(int depth = 0) const override;
+enum class ExpKind  {
+  NUMBER,
+  
+  // used for unary op
+  POSITIVE,
+  NEGATIVE,
+  LOGICAL_NOT,
+  
+  // used for binary op
+  ADD,
+  SUB,
+  MUL,
+  DIV,
+  REM,
 
-  void GenerateIR(std::unique_ptr<std::string>& ir,
-                  IRContext& ctx) const override;
-};
+  // used for compare op
+  LT,
+  GT,
+  LEQ,
+  GEQ,
+  EQ,
+  NEQ,
 
-
-enum class ExpASTKind {
-  UnaryExp,
-  AddExp
+  // used for logical op
+  LAND,
+  LOR
 };
 
 class ExpAST : public BaseAST {
  public:
-  ExpASTKind kind;
-  std::unique_ptr<BaseAST> unaryexp;
-  std::unique_ptr<BaseAST> addexp;
-  void Dump(int depth = 0) const override;
+  ExpKind kind;
 
-  void GenerateIR(std::unique_ptr<std::string>& ir,
-                  IRContext& ctx) const override;
-};
-
-enum class UnaryExpKind { Primary, UnaryOp };
-
-class UnaryExpAST : public BaseAST {
- public:
-  UnaryExpKind kind;
-
-  std::unique_ptr<BaseAST> primaryexp;
-
-  std::unique_ptr<BaseAST> unaryop;
-  std::unique_ptr<BaseAST> unaryexp;
+  int number;                            // used for ExpKind::NUMBER 
+  std::unique_ptr<ExpAST> lhs;           // only used for binary op
+  std::unique_ptr<ExpAST> rhs;           // used both in unary and binary op
 
   void Dump(int depth = 0) const override;
 
@@ -177,91 +150,3 @@ class UnaryExpAST : public BaseAST {
                   IRContext& ctx) const override;
 };
 
-enum class PrimaryExpKind { Exp, Number };
-
-class PrimaryExpAST : public BaseAST {
- public:
-  PrimaryExpKind kind;
-
-  std::unique_ptr<BaseAST> exp;
-
-  std::unique_ptr<BaseAST> number;
-
-  void Dump(int depth = 0) const override;
-
-  void GenerateIR(std::unique_ptr<std::string>& ir,
-                  IRContext& ctx) const override;
-};
-
-enum class UnaryOpKind { Add, Sub, LogicalNot };
-
-class UnaryOpAST : public BaseAST {
- public:
-  UnaryOpKind kind;
-
-  void Dump(int depth = 0) const override;
-
-  void GenerateIR(std::unique_ptr<std::string>& ir,
-                  IRContext& ctx) const override;
-};
-
-enum class MulExpKind {
-  UnaryExp,
-  BinaryExp
-};
-class MulExpAST : public BaseAST {
- public:
-  MulExpKind kind;
-  std::unique_ptr<BaseAST> unaryexp;
-  std::unique_ptr<BaseAST> mulexp;
-  std::unique_ptr<BaseAST> binarymulopast;
-
-  void Dump(int depth = 0) const override;
-
-  void GenerateIR(std::unique_ptr<std::string>& ir,
-                  IRContext& ctx) const override;
-};
-
-enum class BinaryMulOpKind {
-  Mul,
-  Div,
-  Mod
-};
-class BinaryMulOpAST : public BaseAST {
- public:
-  BinaryMulOpKind kind;
-  void Dump(int depth = 0) const override;
-
-  void GenerateIR(std::unique_ptr<std::string>& ir,
-                  IRContext& ctx) const override;
-};
-
-enum class AddExpKind {
-  MulExp,
-  AddMulExp
-};
-class AddExpAST : public BaseAST {
- public:
-  AddExpKind kind;
-  std::unique_ptr<BaseAST> mulexp;
-  std::unique_ptr<BaseAST> addexp;
-  std::unique_ptr<BaseAST> binaryaddopast;
-
-  void Dump(int depth = 0) const override;
-
-  void GenerateIR(std::unique_ptr<std::string>& ir,
-                  IRContext& ctx) const override;
-};
-
-enum class BinaryAddOpKind {
-  Add,
-  Sub
-};
-class BinaryAddOpAST : public BaseAST{
- public:
-  BinaryAddOpKind kind;
-  void Dump(int depth = 0) const override;
-
-  void GenerateIR(std::unique_ptr<std::string>& ir,
-                  IRContext& ctx) const override;
-};

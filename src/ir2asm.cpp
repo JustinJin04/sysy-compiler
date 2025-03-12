@@ -86,13 +86,12 @@ void BasicBlockContext::prepare_operand(const koopa_raw_value_t& operand, std::u
     } else {
       auto tmp_reg_name = alloc_new_temp_reg();
       bind_value_temp_reg(tmp_reg_name, operand);
-      asm_code->append(indent() + "li " + tmp_reg_name + " ," + std::to_string(int_const) + "\n");
+      asm_code->append(indent() + "li " + tmp_reg_name + ", " + std::to_string(int_const) + "\n");
     }
   } else {
     assert(0);
   }
 }
-
 
 void BasicBlockContext::prepare_operand(const koopa_raw_value_t& operand, std::unique_ptr<std::string>& asm_code, std::string reg_name) {
   auto orig_name = value_to_name(operand);
@@ -137,28 +136,110 @@ void visit(const koopa_raw_binary_t& binary, std::unique_ptr<std::string>& asm_c
   auto lreg_name = GLOBAL_BASIC_BLOCK_CTX.value_to_name(lhs);
   auto rreg_name = GLOBAL_BASIC_BLOCK_CTX.value_to_name(rhs);
   assert(lreg_name.has_value() && rreg_name.has_value());
-  // auto result_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
-  // GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(result_reg_name);
 
   switch (op) {
-    case koopa_raw_binary_op::KOOPA_RBO_EQ: {
-      // TODO: is reusing lreg rational?
-      asm_code->append(indent() + "xor " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    case KOOPA_RBO_SUB:{
+      // TODO: default using left operand reg to store result?????
+      if (*lreg_name == "x0") {
+        asm_code->append(indent() + "sub " + *rreg_name + ", x0, " + *rreg_name + "\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+      } else {
+        asm_code->append(indent() + "sub " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      }
+      break;
+    }
+    case KOOPA_RBO_MUL: {
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+      asm_code->append(indent() + "mul " + *rreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      break;
+    }
+    case KOOPA_RBO_ADD: {
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      asm_code->append(indent() + "add " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      break;
+    }
+    case KOOPA_RBO_DIV: {
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      asm_code->append(indent() + "div " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      break;
+    }
+    case KOOPA_RBO_MOD: {
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      asm_code->append(indent() + "rem " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      break;
+    }
+    case KOOPA_RBO_LT: {
+      asm_code->append(indent() + "slt " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      break;
+    }
+    case KOOPA_RBO_GT: {
+      asm_code->append(indent() + "sgt " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      break;
+    }
+    case KOOPA_RBO_LE: {
+      // asm_code->append(indent() + "slt " + *lreg_name + ", " + *rreg_name + ", " + *lreg_name + "\n");
+      asm_code->append(indent() + "sgt " + *rreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      asm_code->append(indent() + "seqz " + *rreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+      break;
+    }
+    case KOOPA_RBO_GE: {
+      // asm_code->append(indent() + "sge " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      asm_code->append(indent() + "slt " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
       asm_code->append(indent() + "seqz " + *lreg_name + ", " + *lreg_name + "\n");
       GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
       break;
     }
-    case KOOPA_RBO_SUB:{
-      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
-      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
-      asm_code->append(indent() + "sub " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    case KOOPA_RBO_EQ: {
+      // TODO: is reusing lreg rational?
+      if(*rreg_name != "x0"){
+        asm_code->append(indent() + "xor " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      }
+      if(*lreg_name != "x0"){
+        asm_code->append(indent() + "seqz " + *lreg_name + ", " + *lreg_name + "\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      } else {
+        auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+        asm_code->append(indent() + "seqz " + new_reg_name + ", " + *lreg_name + "\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
+      }
       break;
     }
+    case KOOPA_RBO_NOT_EQ: {
+      if(*rreg_name != "x0"){
+        asm_code->append(indent() + "xor " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      }
+      if(*lreg_name != "x0"){
+        asm_code->append(indent() + "snez " + *lreg_name + ", " + *lreg_name + "\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      } else {
+        auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+        asm_code->append(indent() + "snez " + new_reg_name + ", " + *lreg_name + "\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
+      }
+      break;
+    }
+    case KOOPA_RBO_AND: {
+      asm_code->append(indent() + "and " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      break;
+    }
+    case KOOPA_RBO_OR: {
+      asm_code->append(indent() + "or " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      // asm_code->append(indent() + "snez " + *lreg_name + ", " + *lreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      break;
+    }
+    
     default: {
       assert(0);
     }
   }
 }
+
 
 
 void IR_to_ASM(std::unique_ptr<std::string>& ir, std::unique_ptr<std::string>& asm_code){
