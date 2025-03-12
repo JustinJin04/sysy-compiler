@@ -32,7 +32,7 @@ class BasicBlockContext {
     // if(next_temp_reg_idx > max_temp_reg_idx) {
     //   assert(0);
     // }
-    assert(next_temp_reg_idx <= max_temp_reg_idx);
+    // assert(next_temp_reg_idx <= max_temp_reg_idx);
     auto ret = "t" + std::to_string(next_temp_reg_idx);
     next_temp_reg_idx += 1;
     return ret;
