@@ -195,30 +195,40 @@ void visit(const koopa_raw_binary_t& binary, std::unique_ptr<std::string>& asm_c
     }
     case KOOPA_RBO_EQ: {
       // TODO: is reusing lreg rational?
-      if(*rreg_name != "x0"){
-        asm_code->append(indent() + "xor " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
-      }
-      if(*lreg_name != "x0"){
+      // 如果两个都是x0则分配新的reg
+      // 否则使用其中一个reg保存结果
+      if(*lreg_name == "x0" && *rreg_name == "x0"){
+        auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+        asm_code->append(indent() + "li " + new_reg_name + ", 1\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
+      } else if (*lreg_name == "x0" && *rreg_name != "x0") {
+        asm_code->append(indent() + "seqz " + *rreg_name + ", " + *rreg_name + "\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+      } else if (*lreg_name != "x0" && *rreg_name == "x0") {
         asm_code->append(indent() + "seqz " + *lreg_name + ", " + *lreg_name + "\n");
         GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
       } else {
-        auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
-        asm_code->append(indent() + "seqz " + new_reg_name + ", " + *lreg_name + "\n");
-        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
+        asm_code->append(indent() + "xor " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+        asm_code->append(indent() + "seqz " + *lreg_name + ", " + *lreg_name + "\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
       }
       break;
     }
     case KOOPA_RBO_NOT_EQ: {
-      if(*rreg_name != "x0"){
-        asm_code->append(indent() + "xor " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
-      }
-      if(*lreg_name != "x0"){
+      if(*lreg_name == "x0" && *rreg_name == "x0"){
+        auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+        asm_code->append(indent() + "li " + new_reg_name + ", 0\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
+      } else if (*lreg_name == "x0" && *rreg_name != "x0") {
+        asm_code->append(indent() + "snez " + *rreg_name + ", " + *rreg_name + "\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+      } else if (*lreg_name != "x0" && *rreg_name == "x0") {
         asm_code->append(indent() + "snez " + *lreg_name + ", " + *lreg_name + "\n");
         GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
       } else {
-        auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
-        asm_code->append(indent() + "snez " + new_reg_name + ", " + *lreg_name + "\n");
-        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
+        asm_code->append(indent() + "xor " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+        asm_code->append(indent() + "snez " + *lreg_name + ", " + *lreg_name + "\n");
+        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
       }
       break;
     }
