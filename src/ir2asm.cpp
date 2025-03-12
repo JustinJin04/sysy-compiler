@@ -138,59 +138,178 @@ void visit(const koopa_raw_binary_t& binary, std::unique_ptr<std::string>& asm_c
   assert(lreg_name.has_value() && rreg_name.has_value());
 
   switch (op) {
+    // case KOOPA_RBO_SUB:{
+    //   // TODO: default using left operand reg to store result?????
+    //   if (*lreg_name == "x0") {
+    //     asm_code->append(indent() + "sub " + *rreg_name + ", x0, " + *rreg_name + "\n");
+    //     GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+    //   } else {
+    //     asm_code->append(indent() + "sub " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //     GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   }
+    //   break;
+    // }
+    // case KOOPA_RBO_MUL: {
+    //   GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+    //   asm_code->append(indent() + "mul " + *rreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //   break;
+    // }
+    // case KOOPA_RBO_ADD: {
+    //   GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   asm_code->append(indent() + "add " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //   break;
+    // }
+    // case KOOPA_RBO_DIV: {
+    //   GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   asm_code->append(indent() + "div " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //   break;
+    // }
+    // case KOOPA_RBO_MOD: {
+    //   GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   asm_code->append(indent() + "rem " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //   break;
+    // }
+    // case KOOPA_RBO_LT: {
+    //   asm_code->append(indent() + "slt " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //   GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   break;
+    // }
+    // case KOOPA_RBO_GT: {
+    //   asm_code->append(indent() + "sgt " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //   GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   break;
+    // }
+    // case KOOPA_RBO_LE: {
+    //   // asm_code->append(indent() + "slt " + *lreg_name + ", " + *rreg_name + ", " + *lreg_name + "\n");
+      
+    //   asm_code->append(indent() + "sgt " + *rreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //   asm_code->append(indent() + "seqz " + *rreg_name + ", " + *rreg_name + "\n");
+    //   GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+    //   break;
+    // }
+    // case KOOPA_RBO_GE: {
+    //   // asm_code->append(indent() + "sge " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //   asm_code->append(indent() + "slt " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //   asm_code->append(indent() + "seqz " + *lreg_name + ", " + *lreg_name + "\n");
+    //   GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   break;
+    // }
+    // case KOOPA_RBO_EQ: {
+    //   // TODO: is reusing lreg rational?
+    //   // 如果两个都是x0则分配新的reg
+    //   // 否则使用其中一个reg保存结果
+    //   if(*lreg_name == "x0" && *rreg_name == "x0"){
+    //     auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+    //     asm_code->append(indent() + "li " + new_reg_name + ", 1\n");
+    //     GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
+    //   } else if (*lreg_name == "x0" && *rreg_name != "x0") {
+    //     asm_code->append(indent() + "seqz " + *rreg_name + ", " + *rreg_name + "\n");
+    //     GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+    //   } else if (*lreg_name != "x0" && *rreg_name == "x0") {
+    //     asm_code->append(indent() + "seqz " + *lreg_name + ", " + *lreg_name + "\n");
+    //     GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   } else {
+    //     asm_code->append(indent() + "xor " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //     asm_code->append(indent() + "seqz " + *lreg_name + ", " + *lreg_name + "\n");
+    //     GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   }
+    //   break;
+    // }
+    // case KOOPA_RBO_NOT_EQ: {
+    //   if(*lreg_name == "x0" && *rreg_name == "x0"){
+    //     auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+    //     asm_code->append(indent() + "li " + new_reg_name + ", 0\n");
+    //     GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
+    //   } else if (*lreg_name == "x0" && *rreg_name != "x0") {
+    //     asm_code->append(indent() + "snez " + *rreg_name + ", " + *rreg_name + "\n");
+    //     GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+    //   } else if (*lreg_name != "x0" && *rreg_name == "x0") {
+    //     asm_code->append(indent() + "snez " + *lreg_name + ", " + *lreg_name + "\n");
+    //     GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   } else {
+    //     asm_code->append(indent() + "xor " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //     asm_code->append(indent() + "snez " + *lreg_name + ", " + *lreg_name + "\n");
+    //     GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   }
+    //   break;
+    // }
+    // case KOOPA_RBO_AND: {
+    //   asm_code->append(indent() + "and " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //   GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   break;
+    // }
+    // case KOOPA_RBO_OR: {
+    //   asm_code->append(indent() + "or " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+    //   // asm_code->append(indent() + "snez " + *lreg_name + ", " + *lreg_name + "\n");
+    //   GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+    //   break;
+    // }
+    
+
+    // always write to new reg
     case KOOPA_RBO_SUB:{
-      // TODO: default using left operand reg to store result?????
-      if (*lreg_name == "x0") {
-        asm_code->append(indent() + "sub " + *rreg_name + ", x0, " + *rreg_name + "\n");
-        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
-      } else {
-        asm_code->append(indent() + "sub " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
-        GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
-      }
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      asm_code->append(indent() + "sub " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
       break;
     }
     case KOOPA_RBO_MUL: {
-      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
-      asm_code->append(indent() + "mul " + *rreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      asm_code->append(indent() + "mul " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
       break;
     }
     case KOOPA_RBO_ADD: {
-      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
-      asm_code->append(indent() + "add " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      asm_code->append(indent() + "add " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
       break;
     }
     case KOOPA_RBO_DIV: {
-      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
-      asm_code->append(indent() + "div " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      asm_code->append(indent() + "div " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
       break;
     }
     case KOOPA_RBO_MOD: {
-      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
-      asm_code->append(indent() + "rem " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      asm_code->append(indent() + "rem " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
       break;
     }
     case KOOPA_RBO_LT: {
-      asm_code->append(indent() + "slt " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
-      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      asm_code->append(indent() + "slt " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
       break;
     }
     case KOOPA_RBO_GT: {
-      asm_code->append(indent() + "sgt " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
-      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      asm_code->append(indent() + "sgt " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
       break;
     }
     case KOOPA_RBO_LE: {
       // asm_code->append(indent() + "slt " + *lreg_name + ", " + *rreg_name + ", " + *lreg_name + "\n");
-      asm_code->append(indent() + "sgt " + *rreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
-      asm_code->append(indent() + "seqz " + *rreg_name + ", " + *rreg_name + "\n");
-      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+      
+      // asm_code->append(indent() + "sgt " + *rreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      // asm_code->append(indent() + "seqz " + *rreg_name + ", " + *rreg_name + "\n");
+      // GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*rreg_name);
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      asm_code->append(indent() + "sgt " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      asm_code->append(indent() + "seqz " + new_reg_name + ", " + new_reg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
       break;
     }
     case KOOPA_RBO_GE: {
       // asm_code->append(indent() + "sge " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
-      asm_code->append(indent() + "slt " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
-      asm_code->append(indent() + "seqz " + *lreg_name + ", " + *lreg_name + "\n");
-      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      // asm_code->append(indent() + "slt " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      // asm_code->append(indent() + "seqz " + *lreg_name + ", " + *lreg_name + "\n");
+      // GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      asm_code->append(indent() + "slt " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      asm_code->append(indent() + "seqz " + new_reg_name + ", " + new_reg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
       break;
     }
     case KOOPA_RBO_EQ: {
@@ -233,17 +352,27 @@ void visit(const koopa_raw_binary_t& binary, std::unique_ptr<std::string>& asm_c
       break;
     }
     case KOOPA_RBO_AND: {
-      asm_code->append(indent() + "and " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
-      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      // asm_code->append(indent() + "and " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      // GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      asm_code->append(indent() + "and " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
       break;
     }
     case KOOPA_RBO_OR: {
-      asm_code->append(indent() + "or " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
-      // asm_code->append(indent() + "snez " + *lreg_name + ", " + *lreg_name + "\n");
-      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      // asm_code->append(indent() + "or " + *lreg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      // // asm_code->append(indent() + "snez " + *lreg_name + ", " + *lreg_name + "\n");
+      // GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(*lreg_name);
+      auto new_reg_name = GLOBAL_BASIC_BLOCK_CTX.alloc_new_temp_reg();
+      asm_code->append(indent() + "or " + new_reg_name + ", " + *lreg_name + ", " + *rreg_name + "\n");
+      GLOBAL_BASIC_BLOCK_CTX.bind_value_temp_reg(new_reg_name);
       break;
     }
     
+
+
+
+
     default: {
       assert(0);
     }
