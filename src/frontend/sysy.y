@@ -99,8 +99,10 @@ BlockItemList
   : BlockItem {
     $$ = $1;
   }
-  | BlockItemList BlockItem {
-    cast_uptr<AST::BlockItem>($1)->next_block_item = cast_uptr<AST::BlockItem>($2);
+  | BlockItem BlockItemList {
+    // BUG: here we have to return a ptr without unique_ptr wrapper
+    // Otherwise if we call dynamic_cast to a unique_ptr, it will cause segmentation fault
+    dynamic_cast<AST::BlockItem*>($1)->next_block_item = cast_uptr<AST::BlockItem>($2);
     $$ = $1;
   }
   ;

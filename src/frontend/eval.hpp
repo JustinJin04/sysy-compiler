@@ -1,12 +1,18 @@
 #pragma once
 
 #include "visitor.hpp"
+#include <unordered_map>
 
 namespace AST {
 
 class EvaluateVisitor : public Visitor {
  public:
   int result = 0;
+  std::unordered_map<std::string, int> const_sym_table;
+
+  EvaluateVisitor(std::unordered_map<std::string, int> other_const_sym_table = {}){
+    const_sym_table = other_const_sym_table;
+  }
 
   // Currently only support evaluate expressions
   // later will support evaluate consteval and vareval
@@ -127,7 +133,22 @@ class EvaluateVisitor : public Visitor {
   void visit(RetStmt& node) override {
     throw std::runtime_error("raise not implemented error");
   }
-
+  void visit(ConstDecl& node) override {
+    throw std::runtime_error("raise not implemented error");
+  }
+  void visit(ConstDef& node) override {
+    throw std::runtime_error("raise not implemented error");
+  }
+  void visit(AssignStmt& node) override {
+    throw std::runtime_error("raise not implemented error");
+  }
+  void visit(LValExp& node) override {
+    // throw std::runtime_error("raise not implemented error");
+    if(const_sym_table.find(node.ident) == const_sym_table.end()) {
+      throw std::runtime_error("undefined symbol: " + node.ident);
+    }
+    result = const_sym_table[node.ident];
+  }
 };
 
 

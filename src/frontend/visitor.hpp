@@ -50,19 +50,19 @@ class Visitor {
   virtual void visit(FuncDef& node) = 0;
   virtual void visit(FuncType& node) = 0;
 
-  // virtual void visit(ConstDecl& node) = 0;
-  // virtual void visit(ConstDef& node) = 0;
+  virtual void visit(ConstDecl& node) = 0;
+  virtual void visit(ConstDef& node) = 0;
   // virtual void visit(VarDecl& node) = 0;
   // virtual void visit(VarDef& node) = 0;
   // virtual void visit(BType& node) = 0;
 
   virtual void visit(RetStmt& node) = 0;
-  // virtual void visit(AssignStmt& node) = 0;
+  virtual void visit(AssignStmt& node) = 0;
 
   // virtual void visit(Exp& node) = 0;      // TODO: should exp be pure virtual?
 
   virtual void visit(NumberExp& node) = 0;
-  // virtual void visit(LValExp& node) = 0;
+  virtual void visit(LValExp& node) = 0;
   virtual void visit(NegativeExp& node) = 0;
   virtual void visit(LogicalNotExp& node) = 0;
   virtual void visit(AddExp& node) = 0;
@@ -82,12 +82,12 @@ class Visitor {
 
 
   // only used for debug stmt
-  void visit(ConstDecl& node) {
-    throw std::runtime_error("raise not implemented error");
-  }
-  void visit(ConstDef& node) {
-    throw std::runtime_error("raise not implemented error");
-  }
+  // void visit(ConstDecl& node) {
+  //   throw std::runtime_error("raise not implemented error");
+  // }
+  // void visit(ConstDef& node) {
+  //   throw std::runtime_error("raise not implemented error");
+  // }
   void visit(VarDecl& node) {
     throw std::runtime_error("raise not implemented error");
   }
@@ -97,16 +97,16 @@ class Visitor {
   void visit(BType& node) {
     throw std::runtime_error("raise not implemented error");
   }
-  void visit(AssignStmt& node) {
-    throw std::runtime_error("raise not implemented error");
-  }
+  // void visit(AssignStmt& node) {
+  //   throw std::runtime_error("raise not implemented error");
+  // }
   void visit(Exp& node ) {
     std::cout<<"visit Exp"<<std::endl;
     throw std::runtime_error("raise not implemented error");
   }
-  void visit(LValExp& node) {
-    throw std::runtime_error("raise not implemented error");
-  }
+  // void visit(LValExp& node) {
+  //   throw std::runtime_error("raise not implemented error");
+  // }
 
 
 };

@@ -65,7 +65,7 @@ class CompUnit : public Base {
 
 class CompUnitItem : public Base {
  public:
-  std::unique_ptr<CompUnitItem> next = nullptr;
+  std::unique_ptr<CompUnitItem> next_compunit_item = nullptr;
 
   virtual void accept(Visitor& v) = 0;
 };
@@ -115,10 +115,8 @@ class ConstDef : public Base {
                       // ident is in symbol table
   // For example:
   // int main () {
-  //   const int a = 1 + 1;         // here 'a' is a TOKEN name. When we parse
-  //   it, we insert <a, 2> into symble table return a;                    //
-  //   here 'a' is a LValExp. We check if 'a' is in symbol table (with value
-  //   computed)
+  //   const int a = 1 + 1;         // here 'a' is a TOKEN name. When we parse it, we insert <a, 2> into symble table
+  //   return a;                    // here 'a' is a LValExp. We check if 'a' is in symbol table (with value computed)
   // }
 
   std::unique_ptr<Exp> const_init_val;
@@ -188,7 +186,7 @@ class AssignStmt : public Stmt {
  */
 class Exp : public Base {
  public:
-  void accept(Visitor& v) override;
+  virtual void accept(Visitor& v) = 0;
 };
 
 class NumberExp : public Exp {
