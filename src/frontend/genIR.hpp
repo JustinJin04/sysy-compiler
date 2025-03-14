@@ -4,13 +4,37 @@
 
 #include "visitor.hpp"
 #include <unordered_map>
+#include <variant>
+#include <stack>
 
 namespace AST {
 
 class GenIRVisitor : public Visitor {
  public:
   std::unique_ptr<std::string> ir_code;
-  std::unordered_map<std::string, int> const_sym_table;
+  // int refers to const symbol, while string refers to variable symbol
+  std::unordered_map<std::string, std::variant<int, std::string>> sym_table;
+
+ private:
+  int tempCounter = 0;
+  std::stack<std::string> tempCounterSt;
+
+  std::string get_new_counter() {
+    int retval = tempCounter;
+    tempCounter += 1;
+    return "%" + std::to_string(retval);
+  }
+  void push_result(std::string result) {
+    tempCounterSt.push(result);
+  }
+  std::string pop_last_result() {
+    std::string ret = tempCounterSt.top();
+    tempCounterSt.pop();
+    return ret;
+  }
+
+
+ public:
 
   void visit(CompUnit& node) override;
   void visit(FuncDef& node) override;
@@ -18,8 +42,8 @@ class GenIRVisitor : public Visitor {
 
   void visit(ConstDecl& node) override;
   void visit(ConstDef& node) override;
-  // void visit(VarDecl& node) override;
-  // void visit(VarDef& node) override;
+  void visit(VarDecl& node) override;
+  void visit(VarDef& node) override;
   // void visit(BType& node) override;
 
   void visit(RetStmt& node) override;

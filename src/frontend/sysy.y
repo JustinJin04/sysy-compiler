@@ -100,8 +100,9 @@ BlockItemList
     $$ = $1;
   }
   | BlockItem BlockItemList {
-    // BUG: here we have to return a ptr without unique_ptr wrapper
+    // BUG1: here we have to return a ptr without unique_ptr wrapper
     // Otherwise if we call dynamic_cast to a unique_ptr, it will cause segmentation fault
+    // BUG2: order of them matters a lot. Please check
     dynamic_cast<AST::BlockItem*>($1)->next_block_item = cast_uptr<AST::BlockItem>($2);
     $$ = $1;
   }
@@ -135,8 +136,8 @@ ConstDefList
   : ConstDef {
     $$ = $1;
   }
-  | ConstDefList ',' ConstDef {
-    cast_uptr<AST::ConstDef>($1)->next_const_def = cast_uptr<AST::ConstDef>($3);
+  | ConstDef ',' ConstDefList {
+    dynamic_cast<AST::ConstDef*>($1)->next_const_def = cast_uptr<AST::ConstDef>($3);
     $$ = $1;
   }
   ;
@@ -171,8 +172,8 @@ VarDefList
   : VarDef {
     $$ = $1;
   }
-  | VarDefList ',' VarDef {
-    cast_uptr<AST::VarDef>($1)->next_var_def = cast_uptr<AST::VarDef>($3);
+  | VarDef ',' VarDefList {
+    dynamic_cast<AST::VarDef*>($1)->next_var_def = cast_uptr<AST::VarDef>($3);
     $$ = $1;
   }
   ;

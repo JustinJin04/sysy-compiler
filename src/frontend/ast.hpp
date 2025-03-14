@@ -119,7 +119,7 @@ class ConstDef : public Base {
   //   return a;                    // here 'a' is a LValExp. We check if 'a' is in symbol table (with value computed)
   // }
 
-  std::unique_ptr<Exp> const_init_val;
+  std::unique_ptr<Exp> const_init_val = nullptr;
   std::unique_ptr<ConstDef> next_const_def = nullptr;
 
   void accept(Visitor& v) override;
@@ -135,7 +135,7 @@ class VarDecl : public Decl {
 class VarDef : public Base {
  public:
   std::string ident;  // TOKEN name, should be inserted into symbol table
-  std::unique_ptr<Exp> var_init_val;
+  std::unique_ptr<Exp> var_init_val = nullptr;
   std::unique_ptr<VarDef> next_var_def = nullptr;
 
   void accept(Visitor& v) override;

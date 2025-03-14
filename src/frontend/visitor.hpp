@@ -52,8 +52,8 @@ class Visitor {
 
   virtual void visit(ConstDecl& node) = 0;
   virtual void visit(ConstDef& node) = 0;
-  // virtual void visit(VarDecl& node) = 0;
-  // virtual void visit(VarDef& node) = 0;
+  virtual void visit(VarDecl& node) = 0;
+  virtual void visit(VarDef& node) = 0;
   // virtual void visit(BType& node) = 0;
 
   virtual void visit(RetStmt& node) = 0;
@@ -88,12 +88,12 @@ class Visitor {
   // void visit(ConstDef& node) {
   //   throw std::runtime_error("raise not implemented error");
   // }
-  void visit(VarDecl& node) {
-    throw std::runtime_error("raise not implemented error");
-  }
-  void visit(VarDef& node) {
-    throw std::runtime_error("raise not implemented error");
-  }
+  // void visit(VarDecl& node) {
+  //   throw std::runtime_error("raise not implemented error");
+  // }
+  // void visit(VarDef& node) {
+  //   throw std::runtime_error("raise not implemented error");
+  // }
   void visit(BType& node) {
     throw std::runtime_error("raise not implemented error");
   }
