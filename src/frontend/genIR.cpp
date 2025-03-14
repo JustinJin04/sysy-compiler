@@ -24,12 +24,13 @@ void GenIRVisitor::visit(FuncDef& node) {
   auto block_item_ptr = node.block_item.get();
   while(block_item_ptr) {
     block_item_ptr->accept(*this);
-    block_item_ptr = block_item_ptr->next_block_item.get();
     
     // Workaround: if block_item_ptr points to ret, then we should break the loop
     if (RetStmt* ptr = dynamic_cast<RetStmt*>(block_item_ptr)) {
       break;
     }
+
+    block_item_ptr = block_item_ptr->next_block_item.get();
   }
   ir_code->append("}\n");
 }
