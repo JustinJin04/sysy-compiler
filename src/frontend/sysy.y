@@ -77,7 +77,11 @@ FuncDef
     auto func_def_ast = new AST::FuncDef();
     func_def_ast->func_type = cast_uptr<AST::FuncType>($1);
     func_def_ast->ident = *std::unique_ptr<std::string>($2);
-    func_def_ast->block_item = cast_uptr<AST::BlockItem>($5);    // since we don't have block, we use block item instead
+    if($5){
+      func_def_ast->block_item = cast_uptr<AST::BlockItem>($5);    // since we don't have block, we use block item instead
+    } else {
+      func_def_ast->block_item = nullptr;
+    }
     $$ = func_def_ast;
   }
   ;
@@ -93,6 +97,9 @@ FuncType
 Block
   : '{' BlockItemList '}' {// Note that BlockItemList is a link list of type BlockItem
     $$ = $2;
+  }
+  | '{' '}' {
+    $$ = nullptr;
   }
   ;
 BlockItemList
@@ -214,6 +221,30 @@ Stmt
     auto ret_stmt_ast = new AST::RetStmt();
     ret_stmt_ast->exp = cast_uptr<AST::Exp>($2);
     $$ = ret_stmt_ast;
+  }
+  | RETURN ';' {
+    auto ret_stmt_ast = new AST::RetStmt();
+    ret_stmt_ast->exp = nullptr;
+    $$ = ret_stmt_ast;
+  }
+  | Block { // block statement
+    auto block_stmt_ast = new AST::BlockStmt();
+    if($1){
+      block_stmt_ast->block_item = cast_uptr<AST::BlockItem>($1);
+    } else {
+      block_stmt_ast->block_item = nullptr;
+    }
+    $$ = block_stmt_ast;
+  }
+  | ';' { // empty exp statement
+    auto exp_stmt_ast = new AST::ExpStmt();
+    exp_stmt_ast->exp = nullptr;
+    $$ = exp_stmt_ast;
+  }
+  | Exp ';' {// non-empty exp statement
+    auto exp_stmt_ast = new AST::ExpStmt();
+    exp_stmt_ast->exp = cast_uptr<AST::Exp>($1);
+    $$ = exp_stmt_ast;
   }
   ;
 

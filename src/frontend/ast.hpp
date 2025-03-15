@@ -25,6 +25,8 @@ class VarDef;     // property of VarDecl
 class Stmt;        // inherit from BlockItem
 class RetStmt;     // inherit from Stmt
 class AssignStmt;  // inherit from Stmt
+class ExpStmt;     // inherit from Stmt
+class BlockStmt;   // inherit from Stmt
 
 class Exp;            // Base class for all expressions
 class NumberExp;      // inherit from Exp
@@ -151,8 +153,10 @@ class BType : public Base {
 /**
  * Stmt abstract class defination
  * Followed two inherited classes:
- * 1. RetStmt
+ * 1. RetStmt (include w/ and w/o exp)
  * 2. AssignStmt
+ * 3. ExpStmt (including w/ and w/o exp)
+ * 4. BlockStmt
  */
 class Stmt : public BlockItem {
  public:
@@ -173,6 +177,18 @@ class AssignStmt : public Stmt {
  public:
   std::unique_ptr<LValExp> lval;
   std::unique_ptr<Exp> exp;
+  void accept(Visitor& v) override;
+};
+
+class ExpStmt : public Stmt {
+ public:
+  std::unique_ptr<Exp> exp;
+  void accept(Visitor& v) override;
+};
+
+class BlockStmt : public Stmt {
+ public:
+  std::unique_ptr<BlockItem> block_item;  // a list of block_item
   void accept(Visitor& v) override;
 };
 

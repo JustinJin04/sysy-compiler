@@ -3,16 +3,18 @@
 #include "visitor.hpp"
 #include <unordered_map>
 #include <variant>
+#include "symtable.hpp"
 
 namespace AST {
 
 class EvaluateVisitor : public Visitor {
  public:
   int result = 0;
-  std::unordered_map<std::string, std::variant<int, std::string>> sym_table;
+  // std::unordered_map<std::string, std::variant<int, std::string>> sym_table;
+  SymbolTables* sym_table_stack;
 
-  EvaluateVisitor(std::unordered_map<std::string, std::variant<int, std::string>> other_sym_table = {}){
-    sym_table = other_sym_table;
+  EvaluateVisitor(SymbolTables* other_sym_table=nullptr){
+    sym_table_stack = other_sym_table;
   }
 
   // Currently only support evaluate expressions
@@ -120,12 +122,10 @@ class EvaluateVisitor : public Visitor {
     result = lhs || rhs;
   }
   void visit(LValExp& node) override {
-    if(sym_table.find(node.ident) == sym_table.end()) {
-      throw std::runtime_error("undefined symbol: " + node.ident);
-    } else if(std::holds_alternative<std::string>(sym_table[node.ident])) {
-      throw std::runtime_error("symbol is not a const value: " + node.ident);
+    if(sym_table_stack == nullptr || sym_table_stack->find(node.ident, true) == false) {
+      throw std::runtime_error("undefined const symbol: " + node.ident);
     }
-    result = std::get<int>(sym_table[node.ident]);
+    result = std::get<int>(sym_table_stack->get(node.ident, true));
   }
   
 

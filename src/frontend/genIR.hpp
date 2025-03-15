@@ -6,14 +6,17 @@
 #include <unordered_map>
 #include <variant>
 #include <stack>
+#include "symtable.hpp"
 
 namespace AST {
+
 
 class GenIRVisitor : public Visitor {
  public:
   std::unique_ptr<std::string> ir_code;
   // int refers to const symbol, while string refers to variable symbol
-  std::unordered_map<std::string, std::variant<int, std::string>> sym_table;
+  // std::unordered_map<std::string, std::variant<int, std::string>> sym_table;
+  SymbolTables sym_table_stack;
 
  private:
   int tempCounter = 0;
@@ -48,6 +51,8 @@ class GenIRVisitor : public Visitor {
 
   void visit(RetStmt& node) override;
   void visit(AssignStmt& node) override;
+  void visit(ExpStmt& node) override;
+  void visit(BlockStmt& node) override;
 
   // virtual void visit(Exp& node) = 0;      // TODO: should exp be pure virtual?
 

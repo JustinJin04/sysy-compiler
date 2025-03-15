@@ -19,6 +19,8 @@ class VarDef;     // property of VarDecl
 class Stmt;        // inherit from BlockItem
 class RetStmt;     // inherit from Stmt
 class AssignStmt;  // inherit from Stmt
+class ExpStmt;     // inherit from Stmt
+class BlockStmt;   // inherit from Stmt
 
 class Exp;            // Base class for all expressions
 class NumberExp;      // inherit from Exp
@@ -78,7 +80,12 @@ class Visitor {
   virtual void visit(AssignStmt& node) {
     throw std::runtime_error("AssignStmt is not implemented");
   }
-
+  virtual void visit(ExpStmt& node) {
+    throw std::runtime_error("ExpStmt is not implemented");
+  }
+  virtual void visit(BlockStmt& node) {
+    throw std::runtime_error("BlockStmt is not implemented");
+  }
   // virtual void visit(Exp& node) = 0;      // TODO: should exp be pure virtual?
 
   virtual void visit(NumberExp& node) {

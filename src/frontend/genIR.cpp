@@ -7,6 +7,8 @@ using namespace AST;
 
 void GenIRVisitor::visit(CompUnit& node) {
   std::cout<<"genir visit compunit"<<std::endl;
+  // initialize sym_table_stack for global scop
+  sym_table_stack.push_table();
   ir_code = std::make_unique<std::string>("");
   auto item_ptr = node.item.get();        // here item_ptr's type is either FuncDef or Decl
   while (item_ptr) {
@@ -17,6 +19,8 @@ void GenIRVisitor::visit(CompUnit& node) {
 
 void GenIRVisitor::visit(FuncDef& node) {
   std::cout<<"genir visit funcdef"<<std::endl;
+  // initialize sym_table_stack for function scope
+  sym_table_stack.push_table();
   ir_code->append("fun @" + node.ident + "(): ");
   node.func_type->accept(*this);           // should print i32
   ir_code->append(" {\n%entry:\n");
@@ -33,6 +37,7 @@ void GenIRVisitor::visit(FuncDef& node) {
     block_item_ptr = block_item_ptr->next_block_item.get();
   }
   ir_code->append("}\n");
+  sym_table_stack.pop_table();
 }
 
 void GenIRVisitor::visit(FuncType& node) {
@@ -206,20 +211,24 @@ void GenIRVisitor::visit(ConstDecl& node) {
 }
 
 void GenIRVisitor::visit(ConstDef& node) {
-  if(sym_table.find(node.ident) != sym_table.end()) {
-    throw std::runtime_error("redefined symbol: " + node.ident);
+  if(sym_table_stack.find_in_current(node.ident, true)) {
+    throw std::runtime_error("redefined const symbol: " + node.ident + " in current scope");
   }
-  auto evaluate_visitor = EvaluateVisitor(sym_table);
+  auto evaluate_visitor = EvaluateVisitor(&sym_table_stack);
   node.const_init_val->accept(evaluate_visitor);
-  sym_table[node.ident] = evaluate_visitor.result;
+  sym_table_stack.insert_to_top(node.ident, evaluate_visitor.result);
   std::cout<<"store const "<<node.ident<<" "<<evaluate_visitor.result<<" into symbol table"<<std::endl;
 }
 
 void GenIRVisitor::visit(RetStmt& node) {
   std::cout<<"genir visit retstmt"<<std::endl;
-  node.exp->accept(*this);
-  auto result_name = pop_last_result();
-  ir_code->append("  ret " + result_name + "\n");
+  if(node.exp){
+    node.exp->accept(*this);
+    auto result_name = pop_last_result();
+    ir_code->append("  ret " + result_name + "\n");
+  } else {
+    ir_code->append("  ret\n");
+  }
   // node.next_block_item->accept(*this);    // TODO: should there be other items after retstmt??
 }
 
@@ -227,13 +236,19 @@ void GenIRVisitor::visit(AssignStmt& node) {
   std::cout<<"genir visit assignstmt"<<std::endl;
   // since const value must be declared
   // hence here lval must be var_symbol
-  auto find_it = sym_table.find(node.lval->ident);
-  if(find_it == sym_table.end()) {
-    throw std::runtime_error("undefined symbol: " + node.lval->ident);
-  } else if (std::holds_alternative<int>(find_it->second)) {
-    throw std::runtime_error("const value cannot be assigned");
+  // auto find_it = sym_table.find(node.lval->ident);
+  // auto find_result = sym_table_stack.find(node.lval->ident);
+  // if(find_result == SymbolType::NONE) {
+  //   throw std::runtime_error("undefined symbol: " + node.lval->ident);
+  // } else if (find_result == SymbolType::CONST) { // 1 means const symbol
+  //   throw std::runtime_error("const value cannot be assigned");
+  // }
+  // auto var_name = std::get<std::string>(find_it->second);
+  auto find_var = sym_table_stack.find(node.lval->ident, false);
+  if(find_var == false) {
+    throw std::runtime_error("undefined var symbol: " + node.lval->ident);
   }
-  auto var_name = std::get<std::string>(find_it->second);
+  auto var_name = std::get<std::string>(sym_table_stack.get(node.lval->ident, false));
 
   // start to compose ir
   // First we have to evaluate exp and push the result
@@ -244,19 +259,54 @@ void GenIRVisitor::visit(AssignStmt& node) {
   
 }
 
+void GenIRVisitor::visit(ExpStmt& node) {
+  std::cout<<"ignore expstmt"<<std::endl;
+  // if(node.exp) {
+  //   node.exp->accept(*this);
+  //   pop_last_result();
+  // }
+}
+
+void GenIRVisitor::visit(BlockStmt& node) {
+  std::cout<<"genir visit blockstmt"<<std::endl;
+  sym_table_stack.push_table();
+  auto block_item_ptr = node.block_item.get();
+  while(block_item_ptr) {
+    block_item_ptr->accept(*this);
+    block_item_ptr = block_item_ptr->next_block_item.get();
+  }
+  sym_table_stack.pop_table();
+}
+
+
 void GenIRVisitor::visit(LValExp& node) {
   std::cout<<"genir visit lval"<<std::endl;
-  auto find_it = sym_table.find(node.ident);
-  if(find_it == sym_table.end()) {
+  // auto find_it = sym_table.find(node.ident);
+  bool find_const = sym_table_stack.find(node.ident, true);
+  bool find_var = sym_table_stack.find(node.ident, false);
+  if(find_const == false && find_var == false) {
     throw std::runtime_error("undefined symbol: " + node.ident);
   }
-  
-  if(std::holds_alternative<int>(find_it->second)) { // const symbol, could return its value immediately
-    int value = std::get<int>(find_it->second);
+  // TODO: What if a symbol is found in both const and var table???????
+  // assert(find_const != find_var);
+  if(find_const && find_var) {
+    int const_layer_num = sym_table_stack.find_layer_num(node.ident, true);
+    int var_layer_num = sym_table_stack.find_layer_num(node.ident, false);
+    if(const_layer_num < var_layer_num) {
+      find_const = false;
+    } else {
+      find_var = false;
+    }
+  }
+
+  if(find_const) { // const symbol, could return its value immediately
+    // int value = std::get<int>(find_it->second);
+    int value = std::get<int>(sym_table_stack.get(node.ident, true));
     push_result(std::to_string(value));
 
   } else { // var symbol, should load first and then return load_temp_counter
-    auto var_name = std::get<std::string>(find_it->second);
+    // auto var_name = std::get<std::string>(find_it->second);
+    auto var_name = std::get<std::string>(sym_table_stack.get(node.ident, false));
     auto load_counter_name = get_new_counter();
     ir_code->append("  " + load_counter_name + " = load " + var_name + "\n");
     push_result(load_counter_name);
@@ -274,11 +324,13 @@ void GenIRVisitor::visit(VarDecl& node) {
 
 void GenIRVisitor::visit(VarDef& node) {
   std::cout<<"genir visit vardef"<<std::endl;
-  if(sym_table.find(node.ident) != sym_table.end()) {
-    throw std::runtime_error("redefined symbol: " + node.ident);
+  if(sym_table_stack.find_in_current(node.ident, false)) {
+    throw std::runtime_error("redefined var symbol: " + node.ident);
   }
-  auto var_symbol_name = "@" + node.ident;
-  sym_table[node.ident] = var_symbol_name;
+  int count = sym_table_stack.total_accurrences(node.ident, false);
+  auto var_symbol_name = "@" + node.ident + "_" + std::to_string(count+1);
+  // sym_table[node.ident] = var_symbol_name;
+  sym_table_stack.insert_to_top(node.ident, var_symbol_name);
   std::cout<<"store var "<<var_symbol_name<<" into symbol table"<<std::endl;
 
   // start to compose ir code
