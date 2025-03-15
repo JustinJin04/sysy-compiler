@@ -2,4 +2,6 @@ build/*
 
 debug/*
 
+backend_legacy/*
+
 .*

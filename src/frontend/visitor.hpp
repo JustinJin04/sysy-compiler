@@ -45,68 +45,93 @@ class LOrExp;         // inherit from BinaryExp
 class Visitor {
  public:
   virtual ~Visitor() = default;
-  virtual void visit(CompUnit& node) = 0;
+  virtual void visit(CompUnit& node) {
+    throw std::runtime_error("CompUnit is not implemented");
+  }
 
-  virtual void visit(FuncDef& node) = 0;
-  virtual void visit(FuncType& node) = 0;
+  virtual void visit(FuncDef& node) {
+    throw std::runtime_error("FuncDef is not implemented");
+  }
+  virtual void visit(FuncType& node) {
+    throw std::runtime_error("FuncType is not implemented");
+  }
 
-  virtual void visit(ConstDecl& node) = 0;
-  virtual void visit(ConstDef& node) = 0;
-  virtual void visit(VarDecl& node) = 0;
-  virtual void visit(VarDef& node) = 0;
-  // virtual void visit(BType& node) = 0;
+  virtual void visit(ConstDecl& node) {
+    throw std::runtime_error("ConstDecl is not implemented");
+  }
+  virtual void visit(ConstDef& node) {
+    throw std::runtime_error("ConstDef is not implemented");
+  }
+  virtual void visit(VarDecl& node) {
+    throw std::runtime_error("VarDecl is not implemented");
+  }
+  virtual void visit(VarDef& node) {
+    throw std::runtime_error("VarDef is not implemented");
+  }
+  virtual void visit(BType& node) {
+    throw std::runtime_error("BType is not implemented");
+  }
 
-  virtual void visit(RetStmt& node) = 0;
-  virtual void visit(AssignStmt& node) = 0;
+  virtual void visit(RetStmt& node) {
+    throw std::runtime_error("RetStmt is not implemented");
+  }
+  virtual void visit(AssignStmt& node) {
+    throw std::runtime_error("AssignStmt is not implemented");
+  }
 
   // virtual void visit(Exp& node) = 0;      // TODO: should exp be pure virtual?
 
-  virtual void visit(NumberExp& node) = 0;
-  virtual void visit(LValExp& node) = 0;
-  virtual void visit(NegativeExp& node) = 0;
-  virtual void visit(LogicalNotExp& node) = 0;
-  virtual void visit(AddExp& node) = 0;
-  virtual void visit(SubExp& node) = 0;
-  virtual void visit(MulExp& node) = 0;
-  virtual void visit(DivExp& node) = 0;
-  virtual void visit(ModExp& node) = 0;
-  virtual void visit(LTExp& node) = 0;
-  virtual void visit(GTExp& node) = 0;
-  virtual void visit(LEExp& node) = 0;
-  virtual void visit(GEExp& node) = 0;
-  virtual void visit(EQExp& node) = 0;
-  virtual void visit(NEExp& node) = 0;
-  virtual void visit(LAndExp& node) = 0;
-  virtual void visit(LOrExp& node) = 0;
-
-
-
-  // only used for debug stmt
-  // void visit(ConstDecl& node) {
-  //   throw std::runtime_error("raise not implemented error");
-  // }
-  // void visit(ConstDef& node) {
-  //   throw std::runtime_error("raise not implemented error");
-  // }
-  // void visit(VarDecl& node) {
-  //   throw std::runtime_error("raise not implemented error");
-  // }
-  // void visit(VarDef& node) {
-  //   throw std::runtime_error("raise not implemented error");
-  // }
-  void visit(BType& node) {
-    throw std::runtime_error("raise not implemented error");
+  virtual void visit(NumberExp& node) {
+    throw std::runtime_error("NumberExp is not implemented");
   }
-  // void visit(AssignStmt& node) {
-  //   throw std::runtime_error("raise not implemented error");
-  // }
-  void visit(Exp& node ) {
-    std::cout<<"visit Exp"<<std::endl;
-    throw std::runtime_error("raise not implemented error");
+  virtual void visit(LValExp& node) {
+    throw std::runtime_error("LValExp is not implemented");
   }
-  // void visit(LValExp& node) {
-  //   throw std::runtime_error("raise not implemented error");
-  // }
+  virtual void visit(NegativeExp& node) {
+    throw std::runtime_error("NegativeExp is not implemented");
+  }
+  virtual void visit(LogicalNotExp& node) {
+    throw std::runtime_error("LogicalNotExp is not implemented");
+  }
+  virtual void visit(AddExp& node) {
+    throw std::runtime_error("AddExp is not implemented");
+  }
+  virtual void visit(SubExp& node) {
+    throw std::runtime_error("SubExp is not implemented");
+  }
+  virtual void visit(MulExp& node) {
+    throw std::runtime_error("MulExp is not implemented");
+  }
+  virtual void visit(DivExp& node) {
+    throw std::runtime_error("DivExp is not implemented");
+  }
+  virtual void visit(ModExp& node) {
+    throw std::runtime_error("ModExp is not implemented");
+  }
+  virtual void visit(LTExp& node) {
+    throw std::runtime_error("LTExp is not implemented");
+  }
+  virtual void visit(GTExp& node) {
+    throw std::runtime_error("GTExp is not implemented");
+  }
+  virtual void visit(LEExp& node) {
+    throw std::runtime_error("LEExp is not implemented");
+  }
+  virtual void visit(GEExp& node) {
+    throw std::runtime_error("GEExp is not implemented");
+  }
+  virtual void visit(EQExp& node) {
+    throw std::runtime_error("EQExp is not implemented");
+  }
+  virtual void visit(NEExp& node) {
+    throw std::runtime_error("NEExp is not implemented");
+  }
+  virtual void visit(LAndExp& node) {
+    throw std::runtime_error("LAndExp is not implemented");
+  }
+  virtual void visit(LOrExp& node) {
+    throw std::runtime_error("LOrExp is not implemented");
+  }
 
 
 };

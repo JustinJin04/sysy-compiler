@@ -1,48 +1,57 @@
 #pragma once
 
-#include "ir.hpp"
-#include <iostream>
+#include <koopa.h>
+#include "visitor.hpp"
 
 namespace KOOPA {
 
 class StackCalculatorVisitor : public Visitor {
  public:
-  int stack_size = 0;
 
-  void visit(Function& func) override {
+  int stack_size = 0;
+  
+  void visit(const koopa_raw_function_t& func) override {
     stack_size = 0;
-    func.bbs->accept(*this);
+    for(int i=0;i<func->bbs.len;++i){
+      auto ptr = func->bbs.buffer[i];
+      visit(reinterpret_cast<koopa_raw_basic_block_t>(ptr));
+    }
     stack_size = (stack_size + 15) / 16 * 16;
   }
 
-  void visit(Slice& slice) override {
-    for (auto& item : slice.items) {
-      item->accept(*this);
+  void visit(const koopa_raw_basic_block_t& bb) override {
+    for(int i=0;i<bb->insts.len;++i){
+      auto ptr = bb->insts.buffer[i];
+      visit(reinterpret_cast<koopa_raw_value_t>(ptr));
     }
   }
 
-  void visit(BasicBlock& bb) override {
-    bb.insts->accept(*this);
+  void visit(const koopa_raw_value_t& inst) override {
+    switch (inst->kind.tag) {
+      case KOOPA_RVT_ALLOC: {
+        stack_size += 4;
+        break;
+      }
+      case KOOPA_RVT_BINARY: {
+        stack_size += 4;
+        break;
+      }
+      case KOOPA_RVT_LOAD: {
+        stack_size += 4;
+        break;
+      }
+      default:{
+        break;
+      }
+    }
   }
 
-  void visit(LocalAllocValue& value) override {
-    stack_size += 4;
-  }
-
-  void visit(BinaryOp& value) override {
-    stack_size += 4;
-  }
-
-  void visit(LoadValue& value) override {
-    stack_size += 4;
-  }
-  void visit(ReturnOp& value) override {
-    // DO NOTHING
-  }
-  void visit(StoreValue& value) override {
-    // DO NOTHING
-  }
 };
+
+
+
+
+
 
 
 

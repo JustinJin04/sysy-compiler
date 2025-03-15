@@ -128,36 +128,6 @@ class EvaluateVisitor : public Visitor {
     result = std::get<int>(sym_table[node.ident]);
   }
   
-  // TODO: following functions shouldn't be called
-  // Implement them to avoid compile error
-  void visit(CompUnit& node) override {
-    throw std::runtime_error("raise not implemented error");
-  }
-  void visit(FuncDef& node) override {
-    throw std::runtime_error("raise not implemented error");
-  }
-  void visit(FuncType& node) override {
-    throw std::runtime_error("raise not implemented error");
-  }
-  void visit(RetStmt& node) override {
-    throw std::runtime_error("raise not implemented error");
-  }
-  void visit(ConstDecl& node) override {
-    throw std::runtime_error("raise not implemented error");
-  }
-  void visit(ConstDef& node) override {
-    throw std::runtime_error("raise not implemented error");
-  }
-  void visit(AssignStmt& node) override {
-    throw std::runtime_error("raise not implemented error");
-  }
-
-  void visit(VarDecl& node) override {
-    throw std::runtime_error("raise not implemented error");
-  }
-  void visit(VarDef& node) override {
-    throw std::runtime_error("raise not implemented error");
-  }
 
 };
 
