@@ -7,6 +7,7 @@
 #include <variant>
 #include <stack>
 #include "symtable.hpp"
+#include "prune.hpp"
 
 namespace AST {
 
@@ -36,6 +37,10 @@ class GenIRVisitor : public Visitor {
     return ret;
   }
 
+    // used to add label after ret
+  // int ret_label_counter = 0;
+  // used to add label before each basic block
+  int block_label_counter = 0;
 
  public:
 

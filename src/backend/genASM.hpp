@@ -18,6 +18,9 @@ class GenASMVisitor : public Visitor {
 
   std::unordered_map<koopa_raw_value_t, int> value_to_offset;
 
+  // used to add label after ret
+  // int ret_label_counter = 0;
+
 
   void visit(const koopa_raw_program_t& program) override;
   void visit(const koopa_raw_value_t& value) override;

@@ -23,17 +23,20 @@ void GenIRVisitor::visit(FuncDef& node) {
   sym_table_stack.push_table();
   ir_code->append("fun @" + node.ident + "(): ");
   node.func_type->accept(*this);           // should print i32
-  ir_code->append(" {\n%entry:\n");
+  // ir_code->append(" {\n%entry:\n");
+  ir_code->append("  {\n%block_" + std::to_string(block_label_counter) + ":\n");
+  block_label_counter++;
+
+  // pruning the basic block to make sure
+  // there is no stmt after ret stmt
+  auto pruning_ret_visitor = PruningRetVisitor();
+  assert(node.block_item);
+  node.block_item->accept(pruning_ret_visitor);
+
   // here block_item is a list of blockitem
   auto block_item_ptr = node.block_item.get();
   while(block_item_ptr) {
     block_item_ptr->accept(*this);
-    
-    // Workaround: if block_item_ptr points to ret, then we should break the loop
-    if (RetStmt* ptr = dynamic_cast<RetStmt*>(block_item_ptr)) {
-      break;
-    }
-
     block_item_ptr = block_item_ptr->next_block_item.get();
   }
   ir_code->append("}\n");
@@ -229,6 +232,9 @@ void GenIRVisitor::visit(RetStmt& node) {
   } else {
     ir_code->append("  ret\n");
   }
+  // generate ret label in order to end this basic block
+  // ir_code->append("%ret_label_" + std::to_string(ret_label_counter) + ":\n");
+  // ret_label_counter++;
   // node.next_block_item->accept(*this);    // TODO: should there be other items after retstmt??
 }
 
@@ -274,6 +280,11 @@ void GenIRVisitor::visit(BlockStmt& node) {
   while(block_item_ptr) {
     block_item_ptr->accept(*this);
     block_item_ptr = block_item_ptr->next_block_item.get();
+
+    // Workaround: if block_item_ptr points to ret, then we should break the loop
+    if (RetStmt* ptr = dynamic_cast<RetStmt*>(block_item_ptr)) {
+      break;
+    }
   }
   sym_table_stack.pop_table();
 }
