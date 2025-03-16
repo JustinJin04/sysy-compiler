@@ -29,23 +29,27 @@ class PruningRetVisitor: public Visitor{
 
   void visit(RetStmt& retstmt) override {
     std::cout<<"pruning retstmt"<<std::endl;
+    assert(pruning_ret == false);
     retstmt.next_block_item.reset(nullptr);
     pruning_ret = true;
   }
 
   void visit(AssignStmt& assignstmt) override {
+    assert(pruning_ret == false);
     if(assignstmt.next_block_item) {
       assignstmt.next_block_item->accept(*this);
     }
   }
 
   void visit(ExpStmt& expstmt) override {
+    assert(pruning_ret == false);
     if(expstmt.next_block_item) {
       expstmt.next_block_item->accept(*this);
     }
   }
 
   void visit(BlockStmt& blockstmt) override {
+    assert(pruning_ret == false);
     if(blockstmt.block_item){
       blockstmt.block_item->accept(*this);
     }
@@ -65,13 +69,11 @@ class PruningRetVisitor: public Visitor{
       std::cout<<"pruning then"<<std::endl;
       ifstmt.then_body->accept(*this);
     }
-    // assert(pruning_end == false);
     pruning_ret = false;
     if(ifstmt.else_body){
       std::cout<<"pruning else"<<std::endl;
       ifstmt.else_body->accept(*this);
     }
-    // assert(pruning_end == false);
     pruning_ret = false;
     if(ifstmt.next_block_item) {
       ifstmt.next_block_item->accept(*this);
@@ -79,17 +81,12 @@ class PruningRetVisitor: public Visitor{
   }
 
   void visit(WhileStmt& whilestmt) override {
+    assert(pruning_ret == false);
     if(whilestmt.body) {
       whilestmt.body->accept(*this);
     }
-    // if(pruning_ret) {
-    //   whilestmt.next_block_item.reset(nullptr);
-    // } else {
-    //   if(whilestmt.next_block_item) {
-    //     whilestmt.next_block_item->accept(*this);
-    //   }
-    // }
-    
+    // since we don't know if the while loop will be executed
+    // we can't prune the next block item
     pruning_ret = false;
     if(whilestmt.next_block_item) {
       whilestmt.next_block_item->accept(*this);
@@ -97,10 +94,12 @@ class PruningRetVisitor: public Visitor{
   }
 
   void visit(BreakStmt& breakstmt) override {
+    assert(pruning_ret == false);
     breakstmt.next_block_item.reset(nullptr);
   }
 
   void visit(ContinueStmt& continuestmt) override {
+    assert(pruning_ret == false);
     continuestmt.next_block_item.reset(nullptr);
   };
 
