@@ -81,6 +81,37 @@ class PruningRetVisitor: public Visitor{
     }
   }
 
+  void visit(WhileStmt& whilestmt) override {
+    assert(pruning_end == false);
+    if(whilestmt.body) {
+      whilestmt.body->accept(*this);
+    }
+    // if(pruning_end) {
+    //   whilestmt.next_block_item.reset(nullptr);
+    // } else {
+    //   if(whilestmt.next_block_item) {
+    //     whilestmt.next_block_item->accept(*this);
+    //   }
+    // }
+    
+    pruning_end = false;
+    if(whilestmt.next_block_item) {
+      whilestmt.next_block_item->accept(*this);
+    }
+  }
+
+  void visit(BreakStmt& breakstmt) override {
+    // assert(pruning_end == false);
+    // breakstmt.next_block_item.reset(nullptr);
+    // pruning_end = true;
+  }
+
+  void visit(ContinueStmt& continuestmt) override {
+    assert(pruning_end == false);
+    continuestmt.next_block_item.reset(nullptr);
+    pruning_end = true;
+  };
+
 
 
 };

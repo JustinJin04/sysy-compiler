@@ -344,7 +344,6 @@ inline std::string get_last_ir_line(std::unique_ptr<std::string>& ir_code) {
   return ir_code->substr(last_line_pos+1, ir_code->size()-last_line_pos-2);
 }
 
-
 void GenIRVisitor::visit(IfStmt& node) {
   std::cout<<"genir visit ifstmt"<<std::endl;
   node.cond->accept(*this);
@@ -360,14 +359,14 @@ void GenIRVisitor::visit(IfStmt& node) {
     ir_code->append(then_label + ":\n");
     node.then_body->accept(*this);
     // TODO: this way is pretty hacky
-    if(get_last_ir_line(ir_code).substr(2, 3) != "ret") {
+    if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && get_last_ir_line(ir_code).substr(2, 4) != "jump") {
       ir_code->append("  jump " + end_label + "\n");
     }
     
     // handle else_body
     ir_code->append(else_label + ":\n");
     node.else_body->accept(*this);
-    if(get_last_ir_line(ir_code).substr(2, 3) != "ret") {
+    if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && get_last_ir_line(ir_code).substr(2, 4) != "jump") {
       ir_code->append("  jump " + end_label + "\n");
     }
 
@@ -382,7 +381,7 @@ void GenIRVisitor::visit(IfStmt& node) {
     // handle then_body
     ir_code->append(then_label + ":\n");
     node.then_body->accept(*this);
-    if(get_last_ir_line(ir_code).substr(2, 3) != "ret") {
+    if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && get_last_ir_line(ir_code).substr(2, 4) != "jump") {
       ir_code->append("  jump " + end_label + "\n");
     }
 
@@ -390,6 +389,40 @@ void GenIRVisitor::visit(IfStmt& node) {
     ir_code->append(end_label + ":\n");
   }
 
+}
+
+void GenIRVisitor::visit(WhileStmt& node) {
+  std::cout<<"genir visit whilestmt"<<std::endl;
+  auto while_entry_name = "%while_entry_" + std::to_string(block_label_counter);
+  auto while_body_name = "%while_body_" + std::to_string(block_label_counter);
+  auto while_end_name = "%while_end_" + std::to_string(block_label_counter);
+  while_stack.push_while_label(while_entry_name, while_end_name);
+  block_label_counter++;
+  ir_code->append("  jump " + while_entry_name + "\n");
+  ir_code->append(while_entry_name + ":\n");
+  node.cond->accept(*this);
+  auto cond_name = pop_last_result();
+  ir_code->append("  br " + cond_name + ", " + while_body_name + ", " + while_end_name + "\n");
+  ir_code->append(while_body_name + ":\n");
+  node.body->accept(*this);
+  // TODO: this way is pretty hacky
+  if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && get_last_ir_line(ir_code).substr(2, 4) != "jump") {
+    ir_code->append("  jump " + while_entry_name + "\n");
+  }
+  ir_code->append(while_end_name + ":\n");
+  while_stack.pop_while_label();
+}
+
+void GenIRVisitor::visit(BreakStmt& node) {
+  std::cout<<"genir visit breakstmt"<<std::endl;
+  auto while_end_name = while_stack.get_top_while_end();
+  ir_code->append("  jump " + while_end_name + "\n");
+}
+
+void GenIRVisitor::visit(ContinueStmt& node) {
+  std::cout<<"genir visit continuestmt"<<std::endl;
+  auto while_entry_name = while_stack.get_top_while_entry();
+  ir_code->append("  jump " + while_entry_name + "\n");
 }
 
 

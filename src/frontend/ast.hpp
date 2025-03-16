@@ -28,6 +28,9 @@ class AssignStmt;  // inherit from Stmt
 class ExpStmt;     // inherit from Stmt
 class BlockStmt;   // inherit from Stmt
 class IfStmt;      // inherit from Stmt
+class WhileStmt;   // inherit from Stmt
+class BreakStmt;   // inherit from Stmt
+class ContinueStmt;  // inherit from Stmt
 
 class Exp;            // Base class for all expressions
 class NumberExp;      // inherit from Exp
@@ -211,6 +214,24 @@ class IfStmt : public Stmt {
  
    void accept(Visitor& v) override;
  };
+
+class WhileStmt : public Stmt {
+ public:
+  std::unique_ptr<Exp> cond;
+  std::unique_ptr<Stmt> body;
+
+  void accept(Visitor& v) override;
+};
+
+class BreakStmt : public Stmt {
+ public:
+  void accept(Visitor& v) override;
+};
+
+class ContinueStmt : public Stmt {
+ public:
+  void accept(Visitor& v) override;
+};
 
 
 /**

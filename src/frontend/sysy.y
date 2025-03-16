@@ -48,7 +48,7 @@ std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
 
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
-%token INT RETURN CONST IF ELSE
+%token INT RETURN CONST IF ELSE WHILE BREAK CONTINUE
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
@@ -262,6 +262,20 @@ MatchedStmt
     auto exp_stmt_ast = new AST::ExpStmt();
     exp_stmt_ast->exp = cast_uptr<AST::Exp>($1);
     $$ = exp_stmt_ast;
+  }
+  | WHILE '(' Exp ')' Stmt {
+    auto while_stmt_ast = new AST::WhileStmt();
+    while_stmt_ast->cond = cast_uptr<AST::Exp>($3);
+    while_stmt_ast->body = cast_uptr<AST::Stmt>($5);
+    $$ = while_stmt_ast;
+  }
+  | BREAK ';' {
+    auto break_stmt_ast = new AST::BreakStmt();
+    $$ = break_stmt_ast;
+  }
+  | CONTINUE ';' {
+    auto continue_stmt_ast = new AST::ContinueStmt();
+    $$ = continue_stmt_ast;
   }
   ;
 

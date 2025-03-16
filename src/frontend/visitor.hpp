@@ -22,6 +22,9 @@ class AssignStmt;  // inherit from Stmt
 class ExpStmt;     // inherit from Stmt
 class BlockStmt;   // inherit from Stmt
 class IfStmt;      // inherit from Stmt
+class WhileStmt;   // inherit from Stmt
+class BreakStmt;   // inherit from Stmt
+class ContinueStmt;  // inherit from Stmt
 
 class Exp;            // Base class for all expressions
 class NumberExp;      // inherit from Exp
@@ -90,7 +93,17 @@ class Visitor {
   virtual void visit(IfStmt& node) {
     throw std::runtime_error("IfStmt is not implemented");
   }
-  
+  virtual void visit(WhileStmt& node) {
+    throw std::runtime_error("WhileStmt is not implemented");
+  }
+  virtual void visit(BreakStmt& node) {
+    throw std::runtime_error("BreakStmt is not implemented");
+  }
+  virtual void visit(ContinueStmt& node) {
+    throw std::runtime_error("ContinueStmt is not implemented");
+  }
+
+
   // virtual void visit(Exp& node) = 0;      // TODO: should exp be pure virtual?
 
   virtual void visit(NumberExp& node) {

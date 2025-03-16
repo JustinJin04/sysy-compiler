@@ -17,6 +17,9 @@ void AssignStmt::accept(Visitor& v) { v.visit(*this); }
 void ExpStmt::accept(Visitor& v) { v.visit(*this); }
 void BlockStmt::accept(Visitor& v) { v.visit(*this); }
 void IfStmt::accept(Visitor& v) { v.visit(*this); }
+void WhileStmt::accept(Visitor& v) { v.visit(*this); }
+void BreakStmt::accept(Visitor& v) { v.visit(*this); }
+void ContinueStmt::accept(Visitor& v) { v.visit(*this); }
 
 void Exp::accept(Visitor& v) {
   // v.visit(*this);

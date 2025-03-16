@@ -8,6 +8,7 @@
 #include <stack>
 #include "symtable.hpp"
 #include "prune.hpp"
+#include "whilestack.hpp"
 
 namespace AST {
 
@@ -18,6 +19,8 @@ class GenIRVisitor : public Visitor {
   // int refers to const symbol, while string refers to variable symbol
   // std::unordered_map<std::string, std::variant<int, std::string>> sym_table;
   SymbolTables sym_table_stack;
+
+  WhileStack while_stack;
 
  private:
   int tempCounter = 0;
@@ -59,6 +62,9 @@ class GenIRVisitor : public Visitor {
   void visit(ExpStmt& node) override;
   void visit(BlockStmt& node) override;
   void visit(IfStmt& node) override;
+  void visit(WhileStmt& node) override;
+  void visit(BreakStmt& node) override;
+  void visit(ContinueStmt& node) override;
 
   // virtual void visit(Exp& node) = 0;      // TODO: should exp be pure virtual?
 
