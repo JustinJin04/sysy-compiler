@@ -101,9 +101,9 @@ class PruningRetVisitor: public Visitor{
   }
 
   void visit(BreakStmt& breakstmt) override {
-    // assert(pruning_end == false);
-    // breakstmt.next_block_item.reset(nullptr);
-    // pruning_end = true;
+    assert(pruning_end == false);
+    breakstmt.next_block_item.reset(nullptr);
+    pruning_end = true;
   }
 
   void visit(ContinueStmt& continuestmt) override {
