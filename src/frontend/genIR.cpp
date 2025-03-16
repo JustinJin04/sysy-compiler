@@ -17,6 +17,10 @@ void GenIRVisitor::visit(CompUnit& node) {
   }
 }
 
+bool is_last_line_label(const std::string& line) {
+  return line.find(":") != std::string::npos;
+}
+
 void GenIRVisitor::visit(FuncDef& node) {
   std::cout<<"genir visit funcdef"<<std::endl;
   // initialize sym_table_stack for function scope
@@ -38,6 +42,9 @@ void GenIRVisitor::visit(FuncDef& node) {
   while(block_item_ptr) {
     block_item_ptr->accept(*this);
     block_item_ptr = block_item_ptr->next_block_item.get();
+  }
+  if(is_last_line_label(*ir_code)){
+    ir_code->append("  ret\n");
   }
   ir_code->append("}\n");
   sym_table_stack.pop_table();
@@ -375,12 +382,17 @@ void GenIRVisitor::visit(IfStmt& node) {
     }
 
     // add end_label
-    // ir_code->append(end_label + ":\n");
-    if(then_body_has_ret && else_body_has_ret) {
-      // don't add ret label
-    } else {
-      ir_code->append(end_label + ":\n");
-    }
+    // TODO: it's possible that after end_label, there is no ret stmt
+    // so we need to eliminate the end_label when leave the functioin
+    ir_code->append(end_label + ":\n");
+
+
+
+    // if(then_body_has_ret && else_body_has_ret) {
+    //   // don't add ret label
+    // } else {
+    //   ir_code->append(end_label + ":\n");
+    // }
 
 
 
