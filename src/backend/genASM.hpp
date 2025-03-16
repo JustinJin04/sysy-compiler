@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include "regpool.hpp"
 
 namespace KOOPA {
 
@@ -17,6 +18,8 @@ class GenASMVisitor : public Visitor {
   int stack_size = 0;
 
   std::unordered_map<koopa_raw_value_t, int> value_to_offset;
+
+  RegPool reg_pool;
 
   // used to add label after ret
   // int ret_label_counter = 0;

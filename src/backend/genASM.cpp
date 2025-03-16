@@ -42,7 +42,7 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
        * 3. store register to stack_offset(sp)
        * 4. move stack_offset
       */
-      auto prepare_op_visitor = PrepareOperandVisitor(&value_to_offset);
+      auto prepare_op_visitor = PrepareOperandVisitor(&value_to_offset, &reg_pool);
       prepare_op_visitor.visit(kind.data.load.src);
       asm_code.append(prepare_op_visitor.asm_code);
       auto& load_reg_name = prepare_op_visitor.load_reg_name;
@@ -50,10 +50,13 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       if(stack_offset < 2048) {
         asm_code.append("  sw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
       } else {
-        asm_code.append("  li t0, " + std::to_string(stack_offset) + "\n");
-        asm_code.append("  add t0, sp, t0\n");
-        asm_code.append("  sw " + load_reg_name + ", 0(t0)\n");
+        auto tmp_reg = reg_pool.getReg();
+        asm_code.append("  li " + tmp_reg + ", " + std::to_string(stack_offset) + "\n");
+        asm_code.append("  add " + tmp_reg + ", sp, " + tmp_reg + "\n");
+        asm_code.append("  sw " + load_reg_name + ", 0(" + tmp_reg + ")\n");
+        reg_pool.freeReg(tmp_reg);
       }
+      reg_pool.freeReg(load_reg_name);
       stack_offset += 4;
       break;
     }
@@ -66,7 +69,7 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       auto lhs = kind.data.binary.lhs;
       auto rhs = kind.data.binary.rhs;
 
-      auto prepareOperandVisitor = PrepareOperandVisitor(&value_to_offset);
+      auto prepareOperandVisitor = PrepareOperandVisitor(&value_to_offset, &reg_pool);
       prepareOperandVisitor.set_load_reg_name("t0");
       prepareOperandVisitor.visit(lhs);
       prepareOperandVisitor.set_load_reg_name("t1");
@@ -152,10 +155,13 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
         asm_code.append("  sw t0, 0(t1)\n");
       }
       stack_offset += 4;
+
+      reg_pool.freeReg("t0");
+      reg_pool.freeReg("t1");
       break;
     }
     case KOOPA_RVT_BRANCH: {
-      auto prepareOperand = PrepareOperandVisitor(&value_to_offset);
+      auto prepareOperand = PrepareOperandVisitor(&value_to_offset, &reg_pool);
       prepareOperand.visit(kind.data.branch.cond);
       asm_code.append(prepareOperand.asm_code);
       auto& load_reg_name = prepareOperand.load_reg_name;
@@ -224,7 +230,7 @@ void GenASMVisitor::visit(const koopa_raw_store_t& load) {
   /**1. load operand to register using prepareOperand 
    * 2. store register to stack_ofset(sp) that binded to dest
   */
-  auto prepareOperandVisitor = PrepareOperandVisitor(&value_to_offset);
+  auto prepareOperandVisitor = PrepareOperandVisitor(&value_to_offset, &reg_pool);
   prepareOperandVisitor.visit(load.value);
   asm_code.append(prepareOperandVisitor.asm_code);
   auto& load_reg_name = prepareOperandVisitor.load_reg_name;
@@ -232,15 +238,17 @@ void GenASMVisitor::visit(const koopa_raw_store_t& load) {
   if(offset < 2048) {
     asm_code.append("  sw " + load_reg_name + ", " + std::to_string(offset) + "(sp)\n");
   } else {
-    asm_code.append("  li t0, " + std::to_string(offset) + "\n");
-    asm_code.append("  add t0, sp, t0\n");
-    asm_code.append("  sw " + load_reg_name + ", 0(t0)\n");
+    auto tmp_reg = reg_pool.getReg();
+    asm_code.append("  li " + tmp_reg + ", " + std::to_string(offset) + "\n");
+    asm_code.append("  add " + tmp_reg + ", sp, " + tmp_reg + "\n");
+    asm_code.append("  sw " + load_reg_name + ", 0(" + tmp_reg + ")\n");
+    reg_pool.freeReg(tmp_reg);
   }
 }
 
 void GenASMVisitor::visit(const koopa_raw_return_t& ret) {
   if (ret.value) {
-    auto prepareOperandVisitor = PrepareOperandVisitor(&value_to_offset);
+    auto prepareOperandVisitor = PrepareOperandVisitor(&value_to_offset, &reg_pool);
     prepareOperandVisitor.set_load_reg_name("a0");
     prepareOperandVisitor.visit(ret.value);
     asm_code.append(prepareOperandVisitor.asm_code);
