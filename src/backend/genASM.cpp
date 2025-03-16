@@ -47,8 +47,13 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       asm_code.append(prepare_op_visitor.asm_code);
       auto& load_reg_name = prepare_op_visitor.load_reg_name;
       value_to_offset[raw_value] = stack_offset;
-      auto dst_name = std::to_string(stack_offset) + "(sp)";
-      asm_code.append("  sw " + load_reg_name + ", " + dst_name + "\n");
+      if(stack_offset < 2048) {
+        asm_code.append("  sw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
+      } else {
+        asm_code.append("  li t0, " + std::to_string(stack_offset) + "\n");
+        asm_code.append("  add t0, sp, t0\n");
+        asm_code.append("  sw " + load_reg_name + ", 0(t0)\n");
+      }
       stack_offset += 4;
       break;
     }
@@ -139,8 +144,13 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       }
 
       value_to_offset[raw_value] = stack_offset;
-      auto dst_name = std::to_string(stack_offset) + "(sp)";
-      asm_code.append("  sw t0, " + dst_name + "\n");
+      if(stack_offset < 2048) {
+        asm_code.append("  sw t0, " + std::to_string(stack_offset) + "(sp)\n");
+      } else {
+        asm_code.append("  li t1, " + std::to_string(stack_offset) + "\n");
+        asm_code.append("  add t1, sp, t1\n");
+        asm_code.append("  sw t0, 0(t1)\n");
+      }
       stack_offset += 4;
       break;
     }
@@ -218,8 +228,14 @@ void GenASMVisitor::visit(const koopa_raw_store_t& load) {
   prepareOperandVisitor.visit(load.value);
   asm_code.append(prepareOperandVisitor.asm_code);
   auto& load_reg_name = prepareOperandVisitor.load_reg_name;
-  auto dst_name = std::to_string(value_to_offset[load.dest]) + "(sp)";
-  asm_code.append("  sw " + load_reg_name + ", " + dst_name + "\n");
+  int offset = value_to_offset[load.dest];
+  if(offset < 2048) {
+    asm_code.append("  sw " + load_reg_name + ", " + std::to_string(offset) + "(sp)\n");
+  } else {
+    asm_code.append("  li t0, " + std::to_string(offset) + "\n");
+    asm_code.append("  add t0, sp, t0\n");
+    asm_code.append("  sw " + load_reg_name + ", 0(t0)\n");
+  }
 }
 
 void GenASMVisitor::visit(const koopa_raw_return_t& ret) {

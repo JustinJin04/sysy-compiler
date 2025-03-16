@@ -34,7 +34,14 @@ class PrepareOperandVisitor: public Visitor {
         throw std::runtime_error("Value not found in value_to_offset");
       }
       auto stack_offset = (*value_to_offset)[value];
-      asm_code.append("  lw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
+      if(stack_offset < 2048){
+        asm_code.append("  lw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
+      } else {
+        asm_code.append("  li t0, " + std::to_string(stack_offset) + "\n");
+        asm_code.append("  add t0, sp, t0\n");
+        asm_code.append("  lw " + load_reg_name + ", 0(t0)\n");
+      }
+      
     }
   }
 };
