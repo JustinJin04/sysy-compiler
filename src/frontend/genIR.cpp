@@ -50,7 +50,7 @@ void GenIRVisitor::visit(FuncDef& node) {
     block_item_ptr = block_item_ptr->next_block_item.get();
   }
   if(is_last_line_label(ir_code)){
-    ir_code->append("  ret 0\n");
+    ir_code->append("  ret\n");
   }
   ir_code->append("}\n");
   sym_table_stack.pop_table();
