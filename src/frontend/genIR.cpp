@@ -17,7 +17,13 @@ void GenIRVisitor::visit(CompUnit& node) {
   }
 }
 
-bool is_last_line_label(const std::string& line) {
+inline std::string get_last_ir_line(std::unique_ptr<std::string>& ir_code) {
+  int last_line_pos = ir_code->find_last_of('\n', ir_code->size()-2);
+  return ir_code->substr(last_line_pos+1, ir_code->size()-last_line_pos-2);
+}
+
+bool is_last_line_label(std::unique_ptr<std::string>& ir_code) {
+  auto line = get_last_ir_line(ir_code);
   return line.find(":") != std::string::npos;
 }
 
@@ -43,7 +49,7 @@ void GenIRVisitor::visit(FuncDef& node) {
     block_item_ptr->accept(*this);
     block_item_ptr = block_item_ptr->next_block_item.get();
   }
-  if(is_last_line_label(*ir_code)){
+  if(is_last_line_label(ir_code)){
     ir_code->append("  ret\n");
   }
   ir_code->append("}\n");
@@ -344,11 +350,6 @@ void GenIRVisitor::visit(BlockStmt& node) {
     block_item_ptr = block_item_ptr->next_block_item.get();
   }
   sym_table_stack.pop_table();
-}
-
-inline std::string get_last_ir_line(std::unique_ptr<std::string>& ir_code) {
-  int last_line_pos = ir_code->find_last_of('\n', ir_code->size()-2);
-  return ir_code->substr(last_line_pos+1, ir_code->size()-last_line_pos-2);
 }
 
 void GenIRVisitor::visit(IfStmt& node) {
