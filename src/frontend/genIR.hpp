@@ -58,6 +58,7 @@ class GenIRVisitor : public Visitor {
   void visit(AssignStmt& node) override;
   void visit(ExpStmt& node) override;
   void visit(BlockStmt& node) override;
+  void visit(IfStmt& node) override;
 
   // virtual void visit(Exp& node) = 0;      // TODO: should exp be pure virtual?
 

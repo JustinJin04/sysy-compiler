@@ -16,6 +16,7 @@ void RetStmt::accept(Visitor& v) { v.visit(*this); }
 void AssignStmt::accept(Visitor& v) { v.visit(*this); }
 void ExpStmt::accept(Visitor& v) { v.visit(*this); }
 void BlockStmt::accept(Visitor& v) { v.visit(*this); }
+void IfStmt::accept(Visitor& v) { v.visit(*this); }
 
 void Exp::accept(Visitor& v) {
   // v.visit(*this);

@@ -67,23 +67,34 @@ class SymbolTables {
     }
   }
 
+  int const_count = -1;
+  int var_count = -1;
   int total_accurrences(const std::string& ident, bool is_const) {
-    int count = 0;
+    // static int const_count = 0;
+    // static int var_count = 0;
     if(is_const) {
-      for(auto it = const_sym_table_stack.rbegin(); it != const_sym_table_stack.rend(); it++) {
-        if(it->find(ident) != it->end()) {
-          count++;
-        }
-      }
-      return count;
+      const_count++;
+      return const_count;
     } else {
-      for(auto it = var_sym_table_stack.rbegin(); it != var_sym_table_stack.rend(); it++) {
-        if(it->find(ident) != it->end()) {
-          count++;
-        }
-      }
-      return count;
+      var_count++;
+      return var_count;
     }
+    // int count = 0;
+    // if(is_const) {
+    //   for(auto it = const_sym_table_stack.rbegin(); it != const_sym_table_stack.rend(); it++) {
+    //     if(it->find(ident) != it->end()) {
+    //       count++;
+    //     }
+    //   }
+    //   return count;
+    // } else {
+    //   for(auto it = var_sym_table_stack.rbegin(); it != var_sym_table_stack.rend(); it++) {
+    //     if(it->find(ident) != it->end()) {
+    //       count++;
+    //     }
+    //   }
+    //   return count;
+    // }
   }
 
   std::variant<int, std::string> get(const std::string& ident, bool is_const){

@@ -275,18 +275,67 @@ void GenIRVisitor::visit(ExpStmt& node) {
 
 void GenIRVisitor::visit(BlockStmt& node) {
   std::cout<<"genir visit blockstmt"<<std::endl;
+
   sym_table_stack.push_table();
   auto block_item_ptr = node.block_item.get();
   while(block_item_ptr) {
     block_item_ptr->accept(*this);
     block_item_ptr = block_item_ptr->next_block_item.get();
-
-    // Workaround: if block_item_ptr points to ret, then we should break the loop
-    if (RetStmt* ptr = dynamic_cast<RetStmt*>(block_item_ptr)) {
-      break;
-    }
   }
   sym_table_stack.pop_table();
+}
+
+inline std::string get_last_ir_line(std::unique_ptr<std::string>& ir_code) {
+  int last_line_pos = ir_code->find_last_of('\n', ir_code->size()-2);
+  return ir_code->substr(last_line_pos+1, ir_code->size()-last_line_pos-2);
+}
+
+
+void GenIRVisitor::visit(IfStmt& node) {
+  std::cout<<"genir visit ifstmt"<<std::endl;
+  node.cond->accept(*this);
+  auto cond_name = pop_last_result();
+  if(node.else_body) {
+    auto then_label = "%then_" + std::to_string(block_label_counter);
+    auto else_label = "%else_" + std::to_string(block_label_counter);
+    auto end_label = "%end_" + std::to_string(block_label_counter);
+    block_label_counter++;
+    ir_code->append("  br " + cond_name + ", " + then_label + ", " + else_label + "\n");
+
+    // handle then_body
+    ir_code->append(then_label + ":\n");
+    node.then_body->accept(*this);
+    // TODO: this way is pretty hacky
+    if(get_last_ir_line(ir_code).substr(2, 3) != "ret") {
+      ir_code->append("  jump " + end_label + "\n");
+    }
+    
+    // handle else_body
+    ir_code->append(else_label + ":\n");
+    node.else_body->accept(*this);
+    if(get_last_ir_line(ir_code).substr(2, 3) != "ret") {
+      ir_code->append("  jump " + end_label + "\n");
+    }
+
+    // add end_label
+    ir_code->append(end_label + ":\n");
+  } else {
+    auto then_label = "%then_" + std::to_string(block_label_counter);
+    auto end_label = "%end_" + std::to_string(block_label_counter);
+    block_label_counter++;
+    ir_code->append("  br " + cond_name + ", " + then_label + ", " + end_label + "\n");
+
+    // handle then_body
+    ir_code->append(then_label + ":\n");
+    node.then_body->accept(*this);
+    if(get_last_ir_line(ir_code).substr(2, 3) != "ret") {
+      ir_code->append("  jump " + end_label + "\n");
+    }
+
+    // add end_label
+    ir_code->append(end_label + ":\n");
+  }
+
 }
 
 

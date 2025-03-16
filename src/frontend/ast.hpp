@@ -27,6 +27,7 @@ class RetStmt;     // inherit from Stmt
 class AssignStmt;  // inherit from Stmt
 class ExpStmt;     // inherit from Stmt
 class BlockStmt;   // inherit from Stmt
+class IfStmt;      // inherit from Stmt
 
 class Exp;            // Base class for all expressions
 class NumberExp;      // inherit from Exp
@@ -157,13 +158,23 @@ class BType : public Base {
  * 2. AssignStmt
  * 3. ExpStmt (including w/ and w/o exp)
  * 4. BlockStmt
+ * 5. IfStmt
  */
 class Stmt : public BlockItem {
+  public:
+   // void accept(Visitor& v) override {
+   //   v.visit(*this);
+   // }
+   virtual void accept(Visitor& v) = 0;
+ };
+
+class MatchedIfelseStmt : public Stmt {
  public:
-  // void accept(Visitor& v) override {
-  //   v.visit(*this);
-  // }
-  virtual void accept(Visitor& v) = 0;
+  std::unique_ptr<Exp> cond;
+  std::unique_ptr<Stmt> then_body;
+  std::unique_ptr<Stmt> else_body;
+
+  void accept(Visitor& v) override;
 };
 
 class RetStmt : public Stmt {
@@ -191,6 +202,15 @@ class BlockStmt : public Stmt {
   std::unique_ptr<BlockItem> block_item;  // a list of block_item
   void accept(Visitor& v) override;
 };
+
+class IfStmt : public Stmt {
+  public:
+   std::unique_ptr<Exp> cond;
+   std::unique_ptr<Stmt> then_body;
+   std::unique_ptr<Stmt> else_body;
+ 
+   void accept(Visitor& v) override;
+ };
 
 
 /**

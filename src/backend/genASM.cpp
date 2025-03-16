@@ -56,10 +56,6 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       visit(kind.data.store);
       break;
     }
-    case KOOPA_RVT_RETURN: {
-      visit(kind.data.ret);
-      break;
-    }
     case KOOPA_RVT_BINARY: {
       auto op = kind.data.binary.op;
       auto lhs = kind.data.binary.lhs;
@@ -148,6 +144,26 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       stack_offset += 4;
       break;
     }
+    case KOOPA_RVT_BRANCH: {
+      auto prepareOperand = PrepareOperandVisitor(&value_to_offset);
+      prepareOperand.visit(kind.data.branch.cond);
+      asm_code.append(prepareOperand.asm_code);
+      auto& load_reg_name = prepareOperand.load_reg_name;
+      // since we have traverse all basic block when visiting raw function
+      // we don't need to deal with the true_bb and false_bb here
+      asm_code.append("  bnez " + load_reg_name + ", " + std::string(kind.data.branch.true_bb->name).substr(1) + "\n");
+      asm_code.append("  j " + std::string(kind.data.branch.false_bb->name).substr(1) + "\n");
+      break;
+    }
+    case KOOPA_RVT_JUMP: {
+      asm_code.append("  j " + std::string(kind.data.jump.target->name).substr(1) + "\n");
+      break;
+    }
+    case KOOPA_RVT_RETURN: {
+      visit(kind.data.ret);
+      break;
+    }
+
 
     default:{
       assert(false);
@@ -180,10 +196,11 @@ void GenASMVisitor::visit(const koopa_raw_function_t& raw_func) {
 
 }
 
+
 void GenASMVisitor::visit(const koopa_raw_basic_block_t& raw_bb) {
   if(raw_bb->name) {
-    // asm_code->append(std::string(block->name)+":\n");
-    // TODO: 如何处理带名字的block??
+    // TODO: this way is pretty hacky
+    asm_code.append(std::string(raw_bb->name).substr(1) + ":\n");
   }
   // visit all the instructions
   assert(raw_bb->insts.kind == KOOPA_RSIK_VALUE);

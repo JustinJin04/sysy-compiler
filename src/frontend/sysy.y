@@ -48,7 +48,7 @@ std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
 
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
-%token INT RETURN CONST
+%token INT RETURN CONST IF ELSE
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
@@ -59,6 +59,7 @@ std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
 %type <ast_val> Exp LVal PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp
 %type <int_val> Number
 %type <ast_val> BlockItemList ConstDefList VarDefList
+%type <ast_val> MatchedStmt OpenStmt
 
 
 
@@ -211,7 +212,23 @@ BType
   ;
 
 Stmt
-  : LVal '=' Exp ';' {
+  : MatchedStmt {
+    $$ = $1;
+  }
+  | OpenStmt {
+    $$ = $1;
+  }
+  ;
+
+MatchedStmt
+  : IF '(' Exp ')' MatchedStmt ELSE MatchedStmt {
+    auto if_stmt_ast = new AST::IfStmt();
+    if_stmt_ast->cond = cast_uptr<AST::Exp>($3);
+    if_stmt_ast->then_body = cast_uptr<AST::Stmt>($5);
+    if_stmt_ast->else_body = cast_uptr<AST::Stmt>($7);
+    $$ = if_stmt_ast;
+  }
+  | LVal '=' Exp ';' {
     auto assign_stmt_ast = new AST::AssignStmt();
     assign_stmt_ast->lval = cast_uptr<AST::LValExp>($1);
     assign_stmt_ast->exp = cast_uptr<AST::Exp>($3);
@@ -245,6 +262,23 @@ Stmt
     auto exp_stmt_ast = new AST::ExpStmt();
     exp_stmt_ast->exp = cast_uptr<AST::Exp>($1);
     $$ = exp_stmt_ast;
+  }
+  ;
+
+OpenStmt
+  : IF '(' Exp ')' Stmt {
+    auto if_stmt_ast = new AST::IfStmt();
+    if_stmt_ast->cond = cast_uptr<AST::Exp>($3);
+    if_stmt_ast->then_body = cast_uptr<AST::Stmt>($5);
+    if_stmt_ast->else_body = nullptr;
+    $$ = if_stmt_ast;
+  }
+  | IF '(' Exp ')' MatchedStmt ELSE OpenStmt {
+    auto if_stmt_ast = new AST::IfStmt();
+    if_stmt_ast->cond = cast_uptr<AST::Exp>($3);
+    if_stmt_ast->then_body = cast_uptr<AST::Stmt>($5);
+    if_stmt_ast->else_body = cast_uptr<AST::Stmt>($7);
+    $$ = if_stmt_ast;
   }
   ;
 
