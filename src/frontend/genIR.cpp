@@ -359,19 +359,31 @@ void GenIRVisitor::visit(IfStmt& node) {
     ir_code->append(then_label + ":\n");
     node.then_body->accept(*this);
     // TODO: this way is pretty hacky
-    if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && get_last_ir_line(ir_code).substr(2, 4) != "jump") {
+    bool then_body_has_ret = get_last_ir_line(ir_code).substr(2, 3) == "ret";
+    bool then_body_has_jump = get_last_ir_line(ir_code).substr(2, 4) == "jump";
+    if(!then_body_has_ret && !then_body_has_jump) {
       ir_code->append("  jump " + end_label + "\n");
     }
     
     // handle else_body
     ir_code->append(else_label + ":\n");
     node.else_body->accept(*this);
-    if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && get_last_ir_line(ir_code).substr(2, 4) != "jump") {
+    bool else_body_has_ret = get_last_ir_line(ir_code).substr(2, 3) == "ret";
+    bool else_body_has_jump = get_last_ir_line(ir_code).substr(2, 4) == "jump";
+    if(!else_body_has_ret && !else_body_has_jump) {
       ir_code->append("  jump " + end_label + "\n");
     }
 
     // add end_label
-    ir_code->append(end_label + ":\n");
+    // ir_code->append(end_label + ":\n");
+    if(then_body_has_ret && else_body_has_ret) {
+      // don't add ret label
+    } else {
+      ir_code->append(end_label + ":\n");
+    }
+
+
+
   } else {
     auto then_label = "%then_" + std::to_string(block_label_counter);
     auto end_label = "%end_" + std::to_string(block_label_counter);
