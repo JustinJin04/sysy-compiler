@@ -179,28 +179,82 @@ void GenIRVisitor::visit(NEExp& node) {
 }
 
 void GenIRVisitor::visit(LAndExp& node) {
+  // node.lhs->accept(*this);
+  // auto lhs_name = pop_last_result();
+  // node.rhs->accept(*this);
+  // auto rhs_name = pop_last_result();
+  // auto result_name = get_new_counter();
+  // auto temp_l = get_new_counter();
+  // auto temp_r = get_new_counter();
+  // ir_code->append("  " + temp_l + " = ne " + lhs_name + ", 0\n");
+  // ir_code->append("  " + temp_r + " = ne " + rhs_name + ", 0\n");
+  // ir_code->append("  " + result_name + " = and " + temp_l + ", " + temp_r + "\n");
+  // push_result(result_name);
+
+  /**
+   * short-circuit evaluation
+   */
+  int count = sym_table_stack.total_accurrences("result", false);
+  auto result_ident_name = "@result_" + std::to_string(count+1);
+  ir_code->append("  " + result_ident_name + " = alloc i32\n");
+  ir_code->append("  store 0, " + result_ident_name + "\n");
   node.lhs->accept(*this);
   auto lhs_name = pop_last_result();
+  auto tmp_1 = get_new_counter();
+  ir_code->append("  " + tmp_1 + " = ne " + lhs_name + ", 0\n");
+  auto then_label = "%then_" + std::to_string(block_label_counter);
+  auto end_label = "%end_" + std::to_string(block_label_counter);
+  block_label_counter++;
+  ir_code->append("  br " + tmp_1 + ", " + then_label + ", " + end_label + "\n");
+  ir_code->append(then_label + ":\n");
   node.rhs->accept(*this);
   auto rhs_name = pop_last_result();
+  auto tmp_2 = get_new_counter();
+  ir_code->append("  " + tmp_2 + " = ne " + rhs_name + ", 0\n");
+  ir_code->append("  store " + tmp_2 + ", " + result_ident_name + "\n");
+  ir_code->append("  jump " + end_label + "\n");
+  ir_code->append(end_label + ":\n");
   auto result_name = get_new_counter();
-  auto temp_l = get_new_counter();
-  auto temp_r = get_new_counter();
-  ir_code->append("  " + temp_l + " = ne " + lhs_name + ", 0\n");
-  ir_code->append("  " + temp_r + " = ne " + rhs_name + ", 0\n");
-  ir_code->append("  " + result_name + " = and " + temp_l + ", " + temp_r + "\n");
+  ir_code->append("  " + result_name + " = load " + result_ident_name + "\n");
   push_result(result_name);
 }
 
 void GenIRVisitor::visit(LOrExp& node) {
+  // node.lhs->accept(*this);
+  // auto lhs_name = pop_last_result();
+  // node.rhs->accept(*this);
+  // auto rhs_name = pop_last_result();
+  // auto temp_name = get_new_counter();
+  // auto result_name = get_new_counter();
+  // ir_code->append("  " + temp_name + " = or " + lhs_name + ", " + rhs_name + "\n");
+  // ir_code->append("  " + result_name + " = ne " + temp_name + ", 0\n");
+  // push_result(result_name);
+
+  /**
+   * short-circuit evaluation
+   */
+  int count = sym_table_stack.total_accurrences("result", false);
+  auto result_ident_name = "@result_" + std::to_string(count+1);
+  ir_code->append("  " + result_ident_name + " = alloc i32\n");
+  ir_code->append("  store 1, " + result_ident_name + "\n");
   node.lhs->accept(*this);
   auto lhs_name = pop_last_result();
+  auto tmp_1 = get_new_counter();
+  ir_code->append("  " + tmp_1 + " = eq " + lhs_name + ", 0\n");
+  auto then_label = "%then_" + std::to_string(block_label_counter);
+  auto end_label = "%end_" + std::to_string(block_label_counter);
+  block_label_counter++;
+  ir_code->append("  br " + tmp_1 + ", " + then_label + ", " + end_label + "\n");
+  ir_code->append(then_label + ":\n");
   node.rhs->accept(*this);
   auto rhs_name = pop_last_result();
-  auto temp_name = get_new_counter();
+  auto tmp_2 = get_new_counter();
+  ir_code->append("  " + tmp_2 + " = ne " + rhs_name + ", 0\n");
+  ir_code->append("  store " + tmp_2 + ", " + result_ident_name + "\n");
+  ir_code->append("  jump " + end_label + "\n");
+  ir_code->append(end_label + ":\n");
   auto result_name = get_new_counter();
-  ir_code->append("  " + temp_name + " = or " + lhs_name + ", " + rhs_name + "\n");
-  ir_code->append("  " + result_name + " = ne " + temp_name + ", 0\n");
+  ir_code->append("  " + result_name + " = load " + result_ident_name + "\n");
   push_result(result_name);
 }
 
