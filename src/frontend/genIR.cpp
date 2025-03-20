@@ -17,7 +17,7 @@ void GenIRVisitor::visit(CompUnit& node) {
   }
 }
 
-inline std::string get_last_ir_line(std::unique_ptr<std::string>& ir_code) {
+static inline std::string get_last_ir_line(std::unique_ptr<std::string>& ir_code) {
   int last_line_pos = ir_code->find_last_of('\n', ir_code->size()-2);
   return ir_code->substr(last_line_pos+1, ir_code->size()-last_line_pos-2);
 }
@@ -367,18 +367,18 @@ void GenIRVisitor::visit(IfStmt& node) {
     ir_code->append(then_label + ":\n");
     node.then_body->accept(*this);
     // TODO: this way is pretty hacky
-    bool then_body_has_ret = get_last_ir_line(ir_code).substr(2, 3) == "ret";
-    bool then_body_has_jump = get_last_ir_line(ir_code).substr(2, 4) == "jump";
-    if(!then_body_has_ret && !then_body_has_jump) {
+    if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && 
+    get_last_ir_line(ir_code).substr(2, 4) != "jump" &&
+    get_last_ir_line(ir_code).substr(2, 2) != "br") {
       ir_code->append("  jump " + end_label + "\n");
     }
     
     // handle else_body
     ir_code->append(else_label + ":\n");
     node.else_body->accept(*this);
-    bool else_body_has_ret = get_last_ir_line(ir_code).substr(2, 3) == "ret";
-    bool else_body_has_jump = get_last_ir_line(ir_code).substr(2, 4) == "jump";
-    if(!else_body_has_ret && !else_body_has_jump) {
+    if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && 
+    get_last_ir_line(ir_code).substr(2, 4) != "jump" &&
+    get_last_ir_line(ir_code).substr(2, 2) != "br") {
       ir_code->append("  jump " + end_label + "\n");
     }
 
@@ -406,7 +406,9 @@ void GenIRVisitor::visit(IfStmt& node) {
     // handle then_body
     ir_code->append(then_label + ":\n");
     node.then_body->accept(*this);
-    if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && get_last_ir_line(ir_code).substr(2, 4) != "jump") {
+    if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && 
+    get_last_ir_line(ir_code).substr(2, 4) != "jump" &&
+    get_last_ir_line(ir_code).substr(2, 2) != "br") {
       ir_code->append("  jump " + end_label + "\n");
     }
 
@@ -431,7 +433,9 @@ void GenIRVisitor::visit(WhileStmt& node) {
   ir_code->append(while_body_name + ":\n");
   node.body->accept(*this);
   // TODO: this way is pretty hacky
-  if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && get_last_ir_line(ir_code).substr(2, 4) != "jump") {
+  if(get_last_ir_line(ir_code).substr(2, 3) != "ret" && 
+     get_last_ir_line(ir_code).substr(2, 4) != "jump" &&
+     get_last_ir_line(ir_code).substr(2, 2) != "br") {
     ir_code->append("  jump " + while_entry_name + "\n");
   }
   ir_code->append(while_end_name + ":\n");
