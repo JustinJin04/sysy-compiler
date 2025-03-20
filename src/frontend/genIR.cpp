@@ -49,8 +49,13 @@ void GenIRVisitor::visit(FuncDef& node) {
     block_item_ptr->accept(*this);
     block_item_ptr = block_item_ptr->next_block_item.get();
   }
-  if(is_last_line_label(ir_code)){
-    ir_code->append("  ret\n");
+  // TODO: what if the function doesn't have a return statement
+  // while it has a return type of int?????????
+  if(is_last_line_label(ir_code) || 
+    (get_last_ir_line(ir_code).find("ret") == std::string::npos &&
+    get_last_ir_line(ir_code).find("jump") == std::string::npos &&
+    get_last_ir_line(ir_code).find("br") == std::string::npos)) {
+    ir_code->append("  ret 0\n");
   }
   ir_code->append("}\n");
   sym_table_stack.pop_table();

@@ -42,6 +42,7 @@ int main(int argc, const char *argv[]) {
   ast->accept(ir_visitor);
   std::cout<<"end genIR"<<std::endl;
   auto& ir = ir_visitor.ir_code;
+  std::cout<<*ir<<std::endl;
   // check ir
   verify_koopa_blocks(*ir);
   std::cout<<"check done"<<std::endl;
