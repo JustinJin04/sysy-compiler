@@ -96,11 +96,21 @@ class PruningRetVisitor: public Visitor{
   void visit(BreakStmt& breakstmt) override {
     assert(pruning_ret == false);
     breakstmt.next_block_item.reset(nullptr);
+    // Here we also need to set pruning_ret to true
+    // For example:
+    // while(1) {
+    //  {
+    //    break; 
+    //  }
+    //  return;
+    // }
+    pruning_ret = true;
   }
 
   void visit(ContinueStmt& continuestmt) override {
     assert(pruning_ret == false);
     continuestmt.next_block_item.reset(nullptr);
+    pruning_ret = true;
   };
 
 };

@@ -44,6 +44,7 @@ int main(int argc, const char *argv[]) {
   auto& ir = ir_visitor.ir_code;
   // check ir
   verify_koopa_blocks(*ir);
+  std::cout<<"check done"<<std::endl;
   FILE* output_file;
   if(mode == "-koopa"){
     output_file = fopen(output.c_str(), "w");

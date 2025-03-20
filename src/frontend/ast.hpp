@@ -171,15 +171,6 @@ class Stmt : public BlockItem {
    virtual void accept(Visitor& v) = 0;
  };
 
-class MatchedIfelseStmt : public Stmt {
- public:
-  std::unique_ptr<Exp> cond;
-  std::unique_ptr<Stmt> then_body;
-  std::unique_ptr<Stmt> else_body;
-
-  void accept(Visitor& v) override;
-};
-
 class RetStmt : public Stmt {
  public:
   std::unique_ptr<Exp> exp;

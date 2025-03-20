@@ -43,6 +43,7 @@ void verify_koopa_blocks(const string& ir) {
     istringstream bss(block);
     string bline;
     while (getline(bss, bline)) {
+      // std::cout<<"bline: "<<bline<<std::endl;
       if (!bline.empty()) {
         instructions.push_back(bline);
       }
