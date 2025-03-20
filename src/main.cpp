@@ -6,6 +6,7 @@
 #include "frontend/ast.hpp"
 #include "frontend/genIR.hpp"
 #include "backend/ir2asm.hpp"
+#include "checkIR.hpp"
 
 using namespace std;
 
@@ -41,6 +42,8 @@ int main(int argc, const char *argv[]) {
   ast->accept(ir_visitor);
   std::cout<<"end genIR"<<std::endl;
   auto& ir = ir_visitor.ir_code;
+  // check ir
+  verify_koopa_blocks(*ir);
   FILE* output_file;
   if(mode == "-koopa"){
     output_file = fopen(output.c_str(), "w");
