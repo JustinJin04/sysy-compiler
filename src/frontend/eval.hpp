@@ -122,10 +122,10 @@ class EvaluateVisitor : public Visitor {
     result = lhs || rhs;
   }
   void visit(LValExp& node) override {
-    if(sym_table_stack == nullptr || sym_table_stack->find(node.ident, true) == false) {
+    if(sym_table_stack == nullptr || sym_table_stack->find(node.ident, SymbolTables::SymbolKind::CONST) == false) {
       throw std::runtime_error("undefined const symbol: " + node.ident);
     }
-    result = std::get<int>(sym_table_stack->get(node.ident, true));
+    result = std::get<int>(sym_table_stack->get(node.ident, SymbolTables::SymbolKind::CONST));
   }
   
 

@@ -10,6 +10,26 @@ void GenIRVisitor::visit(CompUnit& node) {
   // initialize sym_table_stack for global scop
   sym_table_stack.push_table();
   ir_code = std::make_unique<std::string>("");
+
+  // add sysy runtime library function declaration
+  ir_code->append("decl @getint(): i32\n");
+  sym_table_stack.insert_to_top("getint", "@getint(): i32", SymbolTables::SymbolKind::FUNC);
+  ir_code->append("decl @getch(): i32\n");
+  sym_table_stack.insert_to_top("getch", "@getch(): i32", SymbolTables::SymbolKind::FUNC);
+  ir_code->append("decl @getarray(): i32\n");
+  sym_table_stack.insert_to_top("getarray", "@getarray(): i32", SymbolTables::SymbolKind::FUNC);
+  ir_code->append("decl @putint(i32): i32\n");
+  sym_table_stack.insert_to_top("putint", "@putint(i32): i32", SymbolTables::SymbolKind::FUNC);
+  ir_code->append("decl @putch(i32): i32\n");
+  sym_table_stack.insert_to_top("putch", "@putch(i32): i32", SymbolTables::SymbolKind::FUNC);
+  ir_code->append("decl @putarray(i32): i32\n");
+  sym_table_stack.insert_to_top("putarray", "@putarray(i32): i32", SymbolTables::SymbolKind::FUNC);
+  ir_code->append("decl @starttime()\n");
+  sym_table_stack.insert_to_top("starttime", "@starttime()", SymbolTables::SymbolKind::FUNC);
+  ir_code->append("decl @stoptime()\n");
+  sym_table_stack.insert_to_top("stoptime", "@stoptime()", SymbolTables::SymbolKind::FUNC);
+
+  // traverse all funcdef and var or const decl
   auto item_ptr = node.item.get();        // here item_ptr's type is either FuncDef or Decl
   while (item_ptr) {
     item_ptr->accept(*this);
@@ -28,20 +48,47 @@ bool is_last_line_label(std::unique_ptr<std::string>& ir_code) {
 }
 
 void GenIRVisitor::visit(FuncDef& node) {
-  std::cout<<"genir visit funcdef"<<std::endl;
+  std::cout<<"genir visit funcdef "<<node.ident<<std::endl;
+  // func symbol format: @func_name(@param: i32, ...): ret_type
+  // or @func_name(@param: i32, ...)
+  auto func_symbol = "@" + node.ident + "(";
+  if(node.func_fparam) {
+    auto ptr = node.func_fparam.get();
+    while(ptr) {
+      func_symbol += "@" + ptr->ident + ": i32,";
+      ptr = ptr->next_func_fparam.get();
+    }
+    func_symbol.pop_back();
+  }
+  if(node.func_type->type_name == "int") {
+    func_symbol += "): i32";
+  } else {
+    func_symbol += ")";
+  }
+  sym_table_stack.insert_to_top(node.ident, func_symbol, SymbolTables::SymbolKind::FUNC);
+  
   // initialize sym_table_stack for function scope
   sym_table_stack.push_table();
-  ir_code->append("fun @" + node.ident + "(): ");
-  node.func_type->accept(*this);           // should print i32
-  // ir_code->append(" {\n%entry:\n");
-  ir_code->append("  {\n%block_" + std::to_string(block_label_counter) + ":\n");
-  block_label_counter++;
+
+  // initialize temp counter
+  reset_counter();
 
   // pruning the basic block to make sure
   // there is no stmt after ret stmt
-  auto pruning_ret_visitor = PruningRetVisitor();
-  assert(node.block_item);
-  node.block_item->accept(pruning_ret_visitor);
+  if(node.block_item){
+    auto pruning_ret_visitor = PruningRetVisitor();
+    node.block_item->accept(pruning_ret_visitor);
+  }
+  
+  // start to generate ir
+  ir_code->append("fun " + func_symbol + " {\n%entry:\n");
+
+  // allocate stack for fparam
+  auto fparam_ptr = node.func_fparam.get();
+  while(fparam_ptr){
+    fparam_ptr->accept(*this);
+    fparam_ptr = fparam_ptr->next_func_fparam.get();
+  }
 
   // here block_item is a list of blockitem
   auto block_item_ptr = node.block_item.get();
@@ -55,15 +102,95 @@ void GenIRVisitor::visit(FuncDef& node) {
     (get_last_ir_line(ir_code).find("ret") == std::string::npos &&
     get_last_ir_line(ir_code).find("jump") == std::string::npos &&
     get_last_ir_line(ir_code).find("br") == std::string::npos)) {
-    ir_code->append("  ret 0\n");
+    // ir_code->append("  ret 0\n");
+    if(node.func_type->type_name == "int") {
+      ir_code->append("  ret 0\n");
+    } else {
+      ir_code->append("  ret\n");
+    }
   }
   ir_code->append("}\n");
   sym_table_stack.pop_table();
 }
 
-void GenIRVisitor::visit(FuncType& node) {
-  assert(node.type_name == "int");
-  ir_code->append("i32");
+void GenIRVisitor::visit(FuncFParam& node){
+  std::cout<<"genir visit fparam"<<std::endl;
+  /**
+   * 1. insert x->%x
+   * 2. store @x->%x
+   */
+  auto var_symbol_name = "@" + node.ident;
+  // sym_table_stack.insert_to_top(node.ident, var_symbol_name, SymbolTables::SymbolKind::VAR);
+  auto ir_symbol_name = "%" + node.ident;
+  sym_table_stack.insert_to_top(node.ident, ir_symbol_name, SymbolTables::SymbolKind::VAR);
+  ir_code->append("  " + ir_symbol_name + " = alloc i32\n");
+  ir_code->append("  store " + var_symbol_name + ", " + ir_symbol_name + "\n");
+
+  push_result(ir_symbol_name);
+}
+
+void GenIRVisitor::visit(Type& node) {
+  // assert(node.type_name == "int");
+  // ir_code->append("i32");
+  if(node.type_name == "int") {
+    ir_code->append(": i32");
+  } else { // void
+
+  }
+}
+
+std::string get_func_type(const std::string& func_symbol) {
+  int len = func_symbol.size();
+  if(func_symbol.substr(len-3) == "i32") {
+    return "int";
+  } else {
+    return "void";
+  }
+}
+
+void GenIRVisitor::visit(FuncCallExp& node) {
+  /**
+   * 1. prepare parameters
+   * 2. search for function symbol in symbol table
+   * 3. if void return type, then no need to push result
+   * 4. if int return type, then push result
+   */
+  std::cout<<"genir visit funccallexp: "<<node.ident<<std::endl;
+  // prepare parameters
+  auto rparams_ptr = node.rparam.get();
+  std::vector<std::string> rparam;
+  while(rparams_ptr) {
+    rparams_ptr->accept(*this);
+    rparam.push_back(pop_last_result());
+    rparams_ptr = rparams_ptr->next_func_rparam.get();
+  }
+
+  // search for function symbol in symbol table
+  // and prepare function call
+  if(!sym_table_stack.find(node.ident, SymbolTables::SymbolKind::FUNC)) {
+    throw std::runtime_error("undefined function symbol: " + node.ident);
+  }
+  auto func_symbol = std::get<std::string>(sym_table_stack.get(node.ident, SymbolTables::SymbolKind::FUNC));
+  auto func_call = "call @" + node.ident + "(";
+  for(auto p : rparam) {
+    func_call += p + ", ";
+  }
+  if(rparam.size() > 0) {
+    func_call.pop_back();
+    func_call.pop_back();
+  }
+  func_call += ")";
+
+  // using func_type to decide whether need to push result
+  // auto func_type = func_symbol.substr(func_symbol.find(":")+1);
+  auto func_type = get_func_type(func_symbol);
+  if(func_type == "void") {
+    ir_code->append("  " + func_call + "\n");
+  } else {
+    auto result_name = get_new_counter();
+    ir_code->append("  " + result_name + " = " + func_call + "\n");
+    push_result(result_name);
+  }
 }
 
 void GenIRVisitor::visit(NumberExp& node) {
@@ -212,7 +339,7 @@ void GenIRVisitor::visit(LAndExp& node) {
   /**
    * short-circuit evaluation
    */
-  int count = sym_table_stack.total_accurrences("result", false);
+  int count = sym_table_stack.total_accurrences("result", SymbolTables::SymbolKind::VAR);
   auto result_ident_name = "@result_" + std::to_string(count+1);
   ir_code->append("  " + result_ident_name + " = alloc i32\n");
   ir_code->append("  store 0, " + result_ident_name + "\n");
@@ -251,7 +378,7 @@ void GenIRVisitor::visit(LOrExp& node) {
   /**
    * short-circuit evaluation
    */
-  int count = sym_table_stack.total_accurrences("result", false);
+  int count = sym_table_stack.total_accurrences("result", SymbolTables::SymbolKind::VAR);
   auto result_ident_name = "@result_" + std::to_string(count+1);
   ir_code->append("  " + result_ident_name + " = alloc i32\n");
   ir_code->append("  store 1, " + result_ident_name + "\n");
@@ -286,7 +413,7 @@ void GenIRVisitor::visit(ConstDecl& node) {
 }
 
 void GenIRVisitor::visit(ConstDef& node) {
-  if(sym_table_stack.find_in_current(node.ident, true)) {
+  if(sym_table_stack.find_in_current(node.ident, SymbolTables::SymbolKind::CONST)) {
     throw std::runtime_error("redefined const symbol: " + node.ident + " in current scope");
   }
   auto evaluate_visitor = EvaluateVisitor(&sym_table_stack);
@@ -316,17 +443,17 @@ void GenIRVisitor::visit(AssignStmt& node) {
   // hence here lval must be var_symbol
   // auto find_it = sym_table.find(node.lval->ident);
   // auto find_result = sym_table_stack.find(node.lval->ident);
-  // if(find_result == SymbolType::NONE) {
+  // if(find_result == SymbolKind::NONE) {
   //   throw std::runtime_error("undefined symbol: " + node.lval->ident);
-  // } else if (find_result == SymbolType::CONST) { // 1 means const symbol
+  // } else if (find_result == SymbolKind::CONST) { // 1 means const symbol
   //   throw std::runtime_error("const value cannot be assigned");
   // }
   // auto var_name = std::get<std::string>(find_it->second);
-  auto find_var = sym_table_stack.find(node.lval->ident, false);
+  auto find_var = sym_table_stack.find(node.lval->ident, SymbolTables::SymbolKind::VAR);
   if(find_var == false) {
     throw std::runtime_error("undefined var symbol: " + node.lval->ident);
   }
-  auto var_name = std::get<std::string>(sym_table_stack.get(node.lval->ident, false));
+  auto var_name = std::get<std::string>(sym_table_stack.get(node.lval->ident, SymbolTables::SymbolKind::VAR));
 
   // start to compose ir
   // First we have to evaluate exp and push the result
@@ -338,7 +465,18 @@ void GenIRVisitor::visit(AssignStmt& node) {
 }
 
 void GenIRVisitor::visit(ExpStmt& node) {
-  std::cout<<"ignore expstmt"<<std::endl;
+  // std::cout<<"ignore expstmt"<<std::endl;
+  // throw std::runtime_error("expstmt should be ignored");
+  auto func_call_exp = dynamic_cast<FuncCallExp*>(node.exp.get());
+  // assert(func_call_exp != nullptr);
+  if(func_call_exp){
+    func_call_exp->accept(*this);
+  } else {
+    // std::cout<<"ignore expstmt"<<std::endl;
+    // we cannot ignore it since it may modify global variables
+    node.exp->accept(*this);
+  }
+
   // if(node.exp) {
   //   node.exp->accept(*this);
   //   pop_last_result();
@@ -463,16 +601,16 @@ void GenIRVisitor::visit(ContinueStmt& node) {
 void GenIRVisitor::visit(LValExp& node) {
   std::cout<<"genir visit lval"<<std::endl;
   // auto find_it = sym_table.find(node.ident);
-  bool find_const = sym_table_stack.find(node.ident, true);
-  bool find_var = sym_table_stack.find(node.ident, false);
+  bool find_const = sym_table_stack.find(node.ident, SymbolTables::SymbolKind::CONST);
+  bool find_var = sym_table_stack.find(node.ident, SymbolTables::SymbolKind::VAR);
   if(find_const == false && find_var == false) {
     throw std::runtime_error("undefined symbol: " + node.ident);
   }
   // TODO: What if a symbol is found in both const and var table???????
   // assert(find_const != find_var);
   if(find_const && find_var) {
-    int const_layer_num = sym_table_stack.find_layer_num(node.ident, true);
-    int var_layer_num = sym_table_stack.find_layer_num(node.ident, false);
+    int const_layer_num = sym_table_stack.find_layer_num(node.ident, SymbolTables::SymbolKind::CONST);
+    int var_layer_num = sym_table_stack.find_layer_num(node.ident, SymbolTables::SymbolKind::VAR);
     if(const_layer_num < var_layer_num) {
       find_const = false;
     } else {
@@ -482,12 +620,12 @@ void GenIRVisitor::visit(LValExp& node) {
 
   if(find_const) { // const symbol, could return its value immediately
     // int value = std::get<int>(find_it->second);
-    int value = std::get<int>(sym_table_stack.get(node.ident, true));
+    int value = std::get<int>(sym_table_stack.get(node.ident, SymbolTables::SymbolKind::CONST));
     push_result(std::to_string(value));
 
   } else { // var symbol, should load first and then return load_temp_counter
     // auto var_name = std::get<std::string>(find_it->second);
-    auto var_name = std::get<std::string>(sym_table_stack.get(node.ident, false));
+    auto var_name = std::get<std::string>(sym_table_stack.get(node.ident, SymbolTables::SymbolKind::VAR));
     auto load_counter_name = get_new_counter();
     ir_code->append("  " + load_counter_name + " = load " + var_name + "\n");
     push_result(load_counter_name);
@@ -505,21 +643,31 @@ void GenIRVisitor::visit(VarDecl& node) {
 
 void GenIRVisitor::visit(VarDef& node) {
   std::cout<<"genir visit vardef"<<std::endl;
-  if(sym_table_stack.find_in_current(node.ident, false)) {
+  if(sym_table_stack.find_in_current(node.ident, SymbolTables::SymbolKind::VAR)) {
     throw std::runtime_error("redefined var symbol: " + node.ident);
   }
-  int count = sym_table_stack.total_accurrences(node.ident, false);
+  int count = sym_table_stack.total_accurrences(node.ident, SymbolTables::SymbolKind::VAR);
   auto var_symbol_name = "@" + node.ident + "_" + std::to_string(count+1);
   // sym_table[node.ident] = var_symbol_name;
-  sym_table_stack.insert_to_top(node.ident, var_symbol_name);
+  sym_table_stack.insert_to_top(node.ident, var_symbol_name, SymbolTables::SymbolKind::VAR);
   std::cout<<"store var "<<var_symbol_name<<" into symbol table"<<std::endl;
 
   // start to compose ir code
-  ir_code->append("  " + var_symbol_name + " = alloc i32\n");
-  if(node.var_init_val) {
-    node.var_init_val->accept(*this);
-    auto result = pop_last_result();
-    ir_code->append("  store " + result + ", " + var_symbol_name + "\n");
+  if(node.is_global) {
+    ir_code->append("global " + var_symbol_name + " = alloc i32, ");
+    if(node.var_init_val) {
+      auto evaluate_visitor = EvaluateVisitor(&sym_table_stack);
+      node.var_init_val->accept(evaluate_visitor);
+      ir_code->append(std::to_string(evaluate_visitor.result) + "\n");
+    } else {
+      ir_code->append("zeroinit\n");
+    }
+  } else {
+    ir_code->append("  " + var_symbol_name + " = alloc i32\n");
+    if(node.var_init_val) {
+      node.var_init_val->accept(*this);
+      auto result = pop_last_result();
+      ir_code->append("  store " + result + ", " + var_symbol_name + "\n");
+    }
   }
-
 }

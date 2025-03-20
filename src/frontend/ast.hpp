@@ -10,17 +10,29 @@
 namespace AST {
 class Base;  // Base class for all AST nodes
 class CompUnit;
+// class CompUnitRoot;  // we use this class to represent the root of AST
+//                      // since CompUnit is reserved by bison
 class CompUnitItem;  // property of CompUnit
 class FuncDef;       // inherit from CompUnitItem
-class FuncType;      // property of FuncDef
+// class FuncType;      // property of FuncDef
+class Type;
+class FuncFParam;
+class FuncCallExp;
 class BlockItem;     // property of Block
 
-class Decl;       // inherit from CompUnitItem and BlockItem
+class Decl;       // inherit from BlockItem (local declaration)
 class ConstDecl;  // inherit from Decl
 class VarDecl;    // inherit from Decl
-class BType;      // property of Decl, FuncFParam
+// class BType;      // property of Decl, FuncFParam
 class ConstDef;   // property of ConstDecl
 class VarDef;     // property of VarDecl
+
+// class GlobalDecl; // inherit from CompUnitItem (global declaration)
+// class GlobalConstDecl;  // inherit from GlobalDecl
+// class GlobalVarDecl;    // inherit from GlobalDecl
+// class GlobalConstDef;
+// class GlobalVarDef;
+
 
 class Stmt;        // inherit from BlockItem
 class RetStmt;     // inherit from Stmt
@@ -69,40 +81,54 @@ class CompUnit : public Base {
   void accept(Visitor& v) override;
 };
 
-class CompUnitItem : public Base {
+class CompUnitItem : virtual public Base {
  public:
   std::unique_ptr<CompUnitItem> next_compunit_item = nullptr;
 
   virtual void accept(Visitor& v) = 0;
 };
 
+class FuncFParam : public Base {
+ public:
+  // std::unique_ptr<BType> btype;
+  std::unique_ptr<Type> btype;
+  std::string ident;
+  std::unique_ptr<FuncFParam> next_func_fparam = nullptr;
+
+  void accept(Visitor& v) override;
+};
+
 class FuncDef : public CompUnitItem {
  public:
-  std::unique_ptr<FuncType> func_type;
+  // std::unique_ptr<FuncType> func_type;
+  std::unique_ptr<Type> func_type;
   std::string ident;  // TOKEN name, also a symbol in symbol table to be
                       // inserted when this ast node finished construction
+  std::unique_ptr<FuncFParam> func_fparam;  // a list of func_fparam
+  
   std::unique_ptr<BlockItem> block_item;  // a list of block_item
 
   void accept(Visitor& v) override;
 };
 
-class FuncType : public Base {
- public:
-  std::string type_name;
+// class FuncType : public Base {
+//  public:
+//   std::string type_name;
 
-  void accept(Visitor& v) override;
-};
+//   void accept(Visitor& v) override;
+// };
 
-class BlockItem : public Base {
+class BlockItem : virtual public Base {
  public:
   std::unique_ptr<BlockItem> next_block_item = nullptr;
 
   virtual void accept(Visitor& v) = 0;
 };
 
-class Decl : public BlockItem {
+class Decl : public BlockItem, public CompUnitItem {
  public:
-  std::unique_ptr<BType> btype;
+  // std::unique_ptr<BType> btype;
+  std::unique_ptr<Type> btype;
 
   virtual void accept(Visitor& v) = 0;
 };
@@ -128,6 +154,8 @@ class ConstDef : public Base {
   std::unique_ptr<Exp> const_init_val = nullptr;
   std::unique_ptr<ConstDef> next_const_def = nullptr;
 
+  bool is_global = false;
+
   void accept(Visitor& v) override;
 };
 
@@ -144,10 +172,18 @@ class VarDef : public Base {
   std::unique_ptr<Exp> var_init_val = nullptr;
   std::unique_ptr<VarDef> next_var_def = nullptr;
 
+  bool is_global = false;
+
   void accept(Visitor& v) override;
 };
 
-class BType : public Base {
+// class BType : public Base {
+//  public:
+//   std::string type_name;
+
+//   void accept(Visitor& v) override;
+// };
+class Type : public Base {
  public:
   std::string type_name;
 
@@ -235,6 +271,7 @@ class ContinueStmt : public Stmt {
  */
 class Exp : public Base {
  public:
+  std::unique_ptr<Exp> next_func_rparam = nullptr;      // used for func_call parameter list
   virtual void accept(Visitor& v) = 0;
 };
 
@@ -248,6 +285,14 @@ class NumberExp : public Exp {
 class LValExp : public Exp {
  public:
   std::string ident;  // TOKEN name, used to find the symbol in symbol table
+  void accept(Visitor& v) override;
+};
+
+class FuncCallExp : public Exp {
+ public:
+  std::string ident;
+  // std::vector<std::unique_ptr<Exp>> args;
+  std::unique_ptr<Exp> rparam;                    // a list of args (Exp)
   void accept(Visitor& v) override;
 };
 

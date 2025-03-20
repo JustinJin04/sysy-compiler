@@ -4,13 +4,16 @@ namespace AST {
 
 void CompUnit::accept(Visitor& v) { v.visit(*this); }
 void FuncDef::accept(Visitor& v) { v.visit(*this); }
-void FuncType::accept(Visitor& v) { v.visit(*this); }
+// void FuncType::accept(Visitor& v) { v.visit(*this); }
+void FuncFParam::accept(Visitor& v) { v.visit(*this); }
+void FuncCallExp::accept(Visitor& v) { v.visit(*this); }
 
 void ConstDecl::accept(Visitor& v) { v.visit(*this); }
 void ConstDef::accept(Visitor& v) { v.visit(*this); }
 void VarDecl::accept(Visitor& v) { v.visit(*this); }
 void VarDef::accept(Visitor& v) { v.visit(*this); }
-void BType::accept(Visitor& v) { v.visit(*this); }
+// void BType::accept(Visitor& v) { v.visit(*this); }
+void Type::accept(Visitor& v) { v.visit(*this); }
 
 void RetStmt::accept(Visitor& v) { v.visit(*this); }
 void AssignStmt::accept(Visitor& v) { v.visit(*this); }

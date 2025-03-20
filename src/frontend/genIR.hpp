@@ -31,6 +31,10 @@ class GenIRVisitor : public Visitor {
     tempCounter += 1;
     return "%" + std::to_string(retval);
   }
+  void reset_counter() {
+    tempCounter = 0;
+  }
+  
   void push_result(std::string result) {
     tempCounterSt.push(result);
   }
@@ -49,7 +53,10 @@ class GenIRVisitor : public Visitor {
 
   void visit(CompUnit& node) override;
   void visit(FuncDef& node) override;
-  void visit(FuncType& node) override;
+  // void visit(FuncType& node) override;
+  void visit(Type& node) override;
+  void visit(FuncFParam& node) override;
+  void visit(FuncCallExp& node) override;
 
   void visit(ConstDecl& node) override;
   void visit(ConstDef& node) override;

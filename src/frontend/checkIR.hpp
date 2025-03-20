@@ -20,9 +20,11 @@ void verify_koopa_blocks(const string& ir) {
   istringstream iss(ir);
   string line;
   while (getline(iss, line)) {
-    if (line.find('{') != string::npos || line.find('}') != string::npos) {
+    if(line.find('%') == string::npos && line[0] != ' '){
       continue;
     }
+    // std::cout<<"line: "<<line<<std::endl;
+
     if (line.find('%') == 0 && line.find(':') != string::npos) {
       if (!current_block.empty()) {
         blocks.push_back(current_block);

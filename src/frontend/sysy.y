@@ -48,38 +48,82 @@ std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
 
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
-%token INT RETURN CONST IF ELSE WHILE BREAK CONTINUE
+%token INT RETURN CONST IF ELSE WHILE BREAK CONTINUE VOID
 %token <str_val> IDENT
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> Decl ConstDecl BType ConstDef ConstInitVal VarDecl VarDef InitVal
-%type <ast_val> FuncDef FuncType
+%type <ast_val> Decl ConstDecl ConstDef ConstInitVal VarDecl VarDef InitVal
+%type <ast_val> FuncDef
 %type <ast_val> Block BlockItem Stmt
 %type <ast_val> Exp LVal PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp
 %type <int_val> Number
 %type <ast_val> BlockItemList ConstDefList VarDefList
 %type <ast_val> MatchedStmt OpenStmt
+%type <ast_val> FuncFParams FuncFParamsList FuncFParam FuncRParams FuncRParamsList CompUnitItem CompUnitItemList
+//
+%type <ast_val> Type
 
 
 
 %%
 
 CompUnit
-  : FuncDef {
+  : CompUnitItemList {
     auto comp_unit_ast = std::make_unique<AST::CompUnit>();
-    comp_unit_ast->item = cast_uptr<AST::FuncDef>($1);
+    comp_unit_ast->item = cast_uptr<AST::CompUnitItem>($1);
     ast = std::move(comp_unit_ast);
   }
   ;
 
+CompUnitItemList
+  : CompUnitItem {
+    $$ = $1;
+  }
+  | CompUnitItem CompUnitItemList {
+    dynamic_cast<AST::CompUnitItem*>($1)->next_compunit_item = cast_uptr<AST::CompUnitItem>($2);
+    $$ = $1;
+  }
+  ;
+
+CompUnitItem
+  : VarDecl {
+    std::cout<<"Debug: Global VarDecl"<<std::endl;
+    auto var_decl = dynamic_cast<AST::VarDecl*>($1);
+    for(auto var_def = var_decl->var_def.get(); var_def != nullptr; var_def = var_def->next_var_def.get()) {
+      var_def->is_global = true;
+    }
+    $$ = $1;
+  } 
+  | ConstDecl {
+    std::cout<<"Debug: Global ConstDecl"<<std::endl;
+    auto const_decl = dynamic_cast<AST::ConstDecl*>($1);
+    for(auto const_def = const_decl->const_def.get(); const_def != nullptr; const_def = const_def->next_const_def.get()) {
+      const_def->is_global = true;
+      std::cout<<"Debug: ConstDef: "<<const_def->ident<<std::endl;
+    }
+    $$ = $1;
+  }
+  | FuncDef {
+    std::cout<<"Debug: FuncDef"<<std::endl;
+    $$ = $1;
+  }
+  ;
+
+
+
 FuncDef
-  : FuncType IDENT '(' ')' Block {
+  : Type IDENT FuncFParams Block {
     auto func_def_ast = new AST::FuncDef();
-    func_def_ast->func_type = cast_uptr<AST::FuncType>($1);
+    func_def_ast->func_type = cast_uptr<AST::Type>($1);
     func_def_ast->ident = *std::unique_ptr<std::string>($2);
-    if($5){
-      func_def_ast->block_item = cast_uptr<AST::BlockItem>($5);    // since we don't have block, we use block item instead
+    if($3) {
+      func_def_ast->func_fparam = cast_uptr<AST::FuncFParam>($3);
+    } else {
+      func_def_ast->func_fparam = nullptr;
+    }
+    if($4){
+      func_def_ast->block_item = cast_uptr<AST::BlockItem>($4);    // since we don't have block, we use block item instead
     } else {
       func_def_ast->block_item = nullptr;
     }
@@ -87,11 +131,45 @@ FuncDef
   }
   ;
 
-FuncType
+FuncFParams
+  : '(' ')' {
+    $$ = nullptr;
+  }
+  | '(' FuncFParamsList ')' {
+    $$ = $2;
+  }
+  ;
+
+FuncFParamsList
+  : FuncFParam {
+    $$ = $1;
+  }
+  | FuncFParam ',' FuncFParamsList {
+    dynamic_cast<AST::FuncFParam*>($1)->next_func_fparam = cast_uptr<AST::FuncFParam>($3);
+    $$ = $1;
+  }
+  ;
+
+FuncFParam
+  : Type IDENT {
+    std::cout<<"Debug: FuncFParam: "<<*($2)<<std::endl;
+    auto func_fparam_ast = new AST::FuncFParam();
+    func_fparam_ast->btype = cast_uptr<AST::Type>($1);
+    func_fparam_ast->ident = *std::unique_ptr<std::string>($2);
+    $$ = func_fparam_ast;
+  }
+
+Type
   : INT {
-    auto func_type_ast = new AST::FuncType();
+    std::cout<<"Debug: Type"<<std::endl;
+    auto func_type_ast = new AST::Type();
     func_type_ast->type_name = "int";
     $$ = func_type_ast;  
+  }
+  | VOID {
+    auto func_type_ast = new AST::Type();
+    func_type_ast->type_name = "void";
+    $$ = func_type_ast;
   }
   ;
 
@@ -133,9 +211,10 @@ Decl
   }
   ;
 ConstDecl
-  : CONST BType ConstDefList ';' { // Note that ConstDefList is a link list of type ConstDef
+  : CONST Type ConstDefList ';' { // Note that ConstDefList is a link list of type ConstDef
+    std::cout<<"Debug: ConstDecl"<<std::endl;
     auto const_decl_ast = new AST::ConstDecl();
-    const_decl_ast->btype = cast_uptr<AST::BType>($2);
+    const_decl_ast->btype = cast_uptr<AST::Type>($2);
     const_decl_ast->const_def = cast_uptr<AST::ConstDef>($3);
     $$ = const_decl_ast;
   }
@@ -168,16 +247,20 @@ ConstExp
   : Exp {
     $$ = $1;
   }
+  ;
+
 VarDecl
-  : BType VarDefList ';' {
+  : Type VarDefList ';' {
+    std::cout<<"Debug: VarDecl"<<std::endl;
     auto var_decl_ast = new AST::VarDecl();
-    var_decl_ast->btype = cast_uptr<AST::BType>($1);
+    var_decl_ast->btype = cast_uptr<AST::Type>($1);
     var_decl_ast->var_def = cast_uptr<AST::VarDef>($2);
     $$ = var_decl_ast;
   }
   ;
 VarDefList
   : VarDef {
+    std::cout<<"Debug: VarDefList"<<std::endl;
     $$ = $1;
   }
   | VarDef ',' VarDefList {
@@ -198,16 +281,10 @@ VarDef
     $$ = var_def_ast;
   }
   ;
+
 InitVal
   : Exp {
     $$ = $1;
-  }
-  ;
-BType
-  : INT {
-    auto btype_ast = new AST::BType();
-    btype_ast->type_name = "int";
-    $$ = btype_ast;
   }
   ;
 
@@ -426,7 +503,36 @@ UnaryExp
     not_exp_ast->operand = cast_uptr<AST::Exp>($2);
     $$ = not_exp_ast;
   }
+  | IDENT FuncRParams {
+    auto func_call_exp_ast = new AST::FuncCallExp();
+    func_call_exp_ast->ident = *std::unique_ptr<std::string>($1);
+    if($2) {
+      func_call_exp_ast->rparam = cast_uptr<AST::Exp>($2);
+    } else {
+      func_call_exp_ast->rparam = nullptr;
+    }
+    $$ = func_call_exp_ast;
+  }
   ;
+
+FuncRParams
+  : '(' ')' {
+    $$ = nullptr;
+  }
+  | '(' FuncRParamsList ')' {
+    $$ = $2;
+  }
+  ;
+FuncRParamsList
+  : Exp {
+    $$ = $1;
+  }
+  | Exp ',' FuncRParamsList {
+    dynamic_cast<AST::Exp*>($1)->next_func_rparam = cast_uptr<AST::Exp>($3);
+    $$ = $1;
+  }
+
+
 PrimaryExp
   : '(' Exp ')' {
     $$ = $2;

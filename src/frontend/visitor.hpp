@@ -6,13 +6,16 @@ class Base;  // Base class for all AST nodes
 class CompUnit;
 class CompUnitItem;  // property of CompUnit
 class FuncDef;       // inherit from CompUnitItem
-class FuncType;      // property of FuncDef
+// class FuncType;      // property of FuncDef
 class BlockItem;     // property of Block
+class FuncFParam;
+class FuncCallExp;
 
 class Decl;       // inherit from CompUnitItem and BlockItem
 class ConstDecl;  // inherit from Decl
 class VarDecl;    // inherit from Decl
-class BType;      // property of Decl, FuncFParam
+// class BType;      // property of Decl, FuncFParam
+class Type;
 class ConstDef;   // property of ConstDecl
 class VarDef;     // property of VarDecl
 
@@ -58,8 +61,14 @@ class Visitor {
   virtual void visit(FuncDef& node) {
     throw std::runtime_error("FuncDef is not implemented");
   }
-  virtual void visit(FuncType& node) {
-    throw std::runtime_error("FuncType is not implemented");
+  // virtual void visit(FuncType& node) {
+  //   throw std::runtime_error("FuncType is not implemented");
+  // }
+  virtual void visit(FuncFParam& node) {
+    throw std::runtime_error("FuncFParam is not implemented");
+  }
+  virtual void visit(FuncCallExp& node) {
+    throw std::runtime_error("FuncCallExp is not implemented");
   }
 
   virtual void visit(ConstDecl& node) {
@@ -74,8 +83,11 @@ class Visitor {
   virtual void visit(VarDef& node) {
     throw std::runtime_error("VarDef is not implemented");
   }
-  virtual void visit(BType& node) {
-    throw std::runtime_error("BType is not implemented");
+  // virtual void visit(BType& node) {
+  //   throw std::runtime_error("BType is not implemented");
+  // }
+  virtual void visit(Type& node) {
+    throw std::runtime_error("Type is not implemented");
   }
 
   virtual void visit(RetStmt& node) {
