@@ -141,6 +141,7 @@ void GenIRVisitor::visit(Type& node) {
 
 std::string get_func_type(const std::string& func_symbol) {
   int len = func_symbol.size();
+  // std::cout<<"get_func_type(func_symbol): "<<func_symbol<<std::endl;
   if(func_symbol.substr(len-3) == "i32") {
     return "int";
   } else {
@@ -465,14 +466,11 @@ void GenIRVisitor::visit(AssignStmt& node) {
 }
 
 void GenIRVisitor::visit(ExpStmt& node) {
-  // std::cout<<"ignore expstmt"<<std::endl;
-  // throw std::runtime_error("expstmt should be ignored");
   auto func_call_exp = dynamic_cast<FuncCallExp*>(node.exp.get());
   // assert(func_call_exp != nullptr);
   if(func_call_exp){
     func_call_exp->accept(*this);
   } else {
-    // std::cout<<"ignore expstmt"<<std::endl;
     // we cannot ignore it since it may modify global variables
     node.exp->accept(*this);
   }

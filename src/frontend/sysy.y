@@ -23,7 +23,8 @@ template<typename TARGET>
 std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
   TARGET* target = dynamic_cast<TARGET*>(base);
   if (target == nullptr) {
-    throw std::runtime_error("cast_uptr failed");
+    // throw std::runtime_error("cast_uptr failed");
+    exit(10);
   }
   return std::unique_ptr<TARGET>(target);
 }
@@ -61,7 +62,9 @@ std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
 %type <ast_val> BlockItemList ConstDefList VarDefList
 %type <ast_val> MatchedStmt OpenStmt
 %type <ast_val> FuncFParams FuncFParamsList FuncFParam FuncRParams FuncRParamsList CompUnitItem CompUnitItemList
-//
+// note here that we should use general Type instead of BType and FuncType
+// Because when we move an "INT" token, we don't know whether it should be reduce to 
+// BType or FuncType, causing a shift/reduce conflict
 %type <ast_val> Type
 
 
@@ -81,7 +84,12 @@ CompUnitItemList
     $$ = $1;
   }
   | CompUnitItem CompUnitItemList {
-    dynamic_cast<AST::CompUnitItem*>($1)->next_compunit_item = cast_uptr<AST::CompUnitItem>($2);
+    auto comp_unit_item = dynamic_cast<AST::CompUnitItem*>($1);
+    if(comp_unit_item) {
+      comp_unit_item->next_compunit_item = cast_uptr<AST::CompUnitItem>($2);
+    } else {
+      exit(10);
+    }
     $$ = $1;
   }
   ;
@@ -90,6 +98,9 @@ CompUnitItem
   : VarDecl {
     std::cout<<"Debug: Global VarDecl"<<std::endl;
     auto var_decl = dynamic_cast<AST::VarDecl*>($1);
+    if(var_decl == nullptr) {
+      exit(10);
+    }
     for(auto var_def = var_decl->var_def.get(); var_def != nullptr; var_def = var_def->next_var_def.get()) {
       var_def->is_global = true;
     }
@@ -98,6 +109,9 @@ CompUnitItem
   | ConstDecl {
     std::cout<<"Debug: Global ConstDecl"<<std::endl;
     auto const_decl = dynamic_cast<AST::ConstDecl*>($1);
+    if(const_decl == nullptr) {
+      exit(10);
+    }
     for(auto const_def = const_decl->const_def.get(); const_def != nullptr; const_def = const_def->next_const_def.get()) {
       const_def->is_global = true;
       std::cout<<"Debug: ConstDef: "<<const_def->ident<<std::endl;
@@ -145,7 +159,11 @@ FuncFParamsList
     $$ = $1;
   }
   | FuncFParam ',' FuncFParamsList {
-    dynamic_cast<AST::FuncFParam*>($1)->next_func_fparam = cast_uptr<AST::FuncFParam>($3);
+    auto func_fparam = dynamic_cast<AST::FuncFParam*>($1);
+    if(func_fparam == nullptr) {
+      exit(10);
+    }
+    func_fparam->next_func_fparam = cast_uptr<AST::FuncFParam>($3);
     $$ = $1;
   }
   ;
@@ -189,7 +207,11 @@ BlockItemList
     // BUG1: here we have to return a ptr without unique_ptr wrapper
     // Otherwise if we call dynamic_cast to a unique_ptr, it will cause segmentation fault
     // BUG2: order of them matters a lot. Please check
-    dynamic_cast<AST::BlockItem*>($1)->next_block_item = cast_uptr<AST::BlockItem>($2);
+    auto block_item = dynamic_cast<AST::BlockItem*>($1);
+    if(block_item == nullptr) {
+      exit(10);
+    }
+    block_item->next_block_item = cast_uptr<AST::BlockItem>($2);
     $$ = $1;
   }
   ;
@@ -224,7 +246,11 @@ ConstDefList
     $$ = $1;
   }
   | ConstDef ',' ConstDefList {
-    dynamic_cast<AST::ConstDef*>($1)->next_const_def = cast_uptr<AST::ConstDef>($3);
+    auto const_def = dynamic_cast<AST::ConstDef*>($1);
+    if(const_def == nullptr) {
+      exit(10);
+    }
+    const_def->next_const_def = cast_uptr<AST::ConstDef>($3);
     $$ = $1;
   }
   ;
@@ -264,7 +290,11 @@ VarDefList
     $$ = $1;
   }
   | VarDef ',' VarDefList {
-    dynamic_cast<AST::VarDef*>($1)->next_var_def = cast_uptr<AST::VarDef>($3);
+    auto var_def = dynamic_cast<AST::VarDef*>($1);
+    if(var_def == nullptr) {
+      exit(10);
+    }
+    var_def->next_var_def = cast_uptr<AST::VarDef>($3);
     $$ = $1;
   }
   ;
@@ -528,7 +558,11 @@ FuncRParamsList
     $$ = $1;
   }
   | Exp ',' FuncRParamsList {
-    dynamic_cast<AST::Exp*>($1)->next_func_rparam = cast_uptr<AST::Exp>($3);
+    auto exp = dynamic_cast<AST::Exp*>($1);
+    if(exp == nullptr) {
+      exit(10);
+    }
+    exp->next_func_rparam = cast_uptr<AST::Exp>($3);
     $$ = $1;
   }
 
