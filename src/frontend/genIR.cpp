@@ -418,6 +418,9 @@ void GenIRVisitor::visit(ConstDef& node) {
     throw std::runtime_error("redefined const symbol: " + node.ident + " in current scope");
   }
   auto evaluate_visitor = EvaluateVisitor(&sym_table_stack);
+  if(node.const_init_val == nullptr) {
+    exit(13);
+  }
   node.const_init_val->accept(evaluate_visitor);
   sym_table_stack.insert_to_top(node.ident, evaluate_visitor.result);
   std::cout<<"store const "<<node.ident<<" "<<evaluate_visitor.result<<" into symbol table"<<std::endl;
