@@ -35,7 +35,10 @@ int main(int argc, const char *argv[]) {
   std::cout<<"start parsing"<<std::endl;
   auto ret = yyparse(ast);
   std::cout<<"end parsing"<<std::endl;
-  assert(!ret);
+  if(ret) {
+    exit(11);
+  }
+  // assert(!ret);
 
   // 输出解析得到的 AST, 其实就是个字符串
   auto ir_visitor = AST::GenIRVisitor();
