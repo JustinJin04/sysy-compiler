@@ -39,6 +39,9 @@ class GenIRVisitor : public Visitor {
     tempCounterSt.push(result);
   }
   std::string pop_last_result() {
+    if(tempCounterSt.empty()) {
+      exit(12);
+    }
     std::string ret = tempCounterSt.top();
     tempCounterSt.pop();
     return ret;
