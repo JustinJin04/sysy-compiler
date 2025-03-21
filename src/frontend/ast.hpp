@@ -4,6 +4,7 @@
 #include <memory>
 #include <stack>
 #include <string>
+#include <vector>
 
 #include "visitor.hpp"
 
@@ -32,6 +33,8 @@ class VarDef;     // property of VarDecl
 // class GlobalVarDecl;    // inherit from GlobalDecl
 // class GlobalConstDef;
 // class GlobalVarDef;
+class ArrayInitVal;
+class ArrayDims;
 
 
 class Stmt;        // inherit from BlockItem
@@ -140,6 +143,30 @@ class ConstDecl : public Decl {
   void accept(Visitor& v) override;
 };
 
+
+class ArrayInitVal : public Base {
+ public:
+  /**
+   * 1. exp=nullptr, array_init_val_hierarchy.size() = 0 means zeroinit
+   * 2. exp=nullptr, array_init_val_hierarchy.size() > 0 means array init
+   * 3. exp!=nullptr, array_init_val_hierarchy.size() = 0 means a leafnode
+   */
+
+  std::unique_ptr<Exp> exp = nullptr;
+
+  std::vector<std::unique_ptr<ArrayInitVal>> array_init_val_hierarchy;
+
+  void accept(Visitor& v) override;
+};
+
+class ArrayDims : public Base {
+ public:
+  std::unique_ptr<Exp> exp;
+  std::unique_ptr<ArrayDims> next_dim = nullptr;
+
+  void accept(Visitor& v) override;
+};
+
 class ConstDef : public Base {
  public:
   std::string ident;  // TOKEN name, should be inserted into symbol table
@@ -150,14 +177,23 @@ class ConstDef : public Base {
   //   const int a = 1 + 1;         // here 'a' is a TOKEN name. When we parse it, we insert <a, 2> into symble table
   //   return a;                    // here 'a' is a LValExp. We check if 'a' is in symbol table (with value computed)
   // }
-
-  std::unique_ptr<Exp> const_init_val = nullptr;
   std::unique_ptr<ConstDef> next_const_def = nullptr;
-
   bool is_global = false;
+
+  /**
+   * a list of array_dim
+   * for example:
+   * const int a[2][3] = {{1, 2, 3}, {4, 5, 6}};
+   * array_dims = {2, 3}
+   * array_init_val = {{1, 2, 3}, {4, 5, 6}}
+   */
+  std::unique_ptr<ArrayDims> array_dims;
+  std::unique_ptr<ArrayInitVal> const_init_val = nullptr;
 
   void accept(Visitor& v) override;
 };
+
+
 
 class VarDecl : public Decl {
  public:
@@ -285,6 +321,8 @@ class NumberExp : public Exp {
 class LValExp : public Exp {
  public:
   std::string ident;  // TOKEN name, used to find the symbol in symbol table
+
+  std::unique_ptr<ArrayDims> array_dims = nullptr;  // a list of array_dim
   void accept(Visitor& v) override;
 };
 

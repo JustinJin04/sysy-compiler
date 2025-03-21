@@ -26,10 +26,10 @@ class GenIRVisitor : public Visitor {
   int tempCounter = 0;
   std::stack<std::string> tempCounterSt;
 
-  std::string get_new_counter() {
+  std::string get_new_counter(std::string name = "") {
     int retval = tempCounter;
     tempCounter += 1;
-    return "%" + std::to_string(retval);
+    return "%" + name + std::to_string(retval);
   }
   void reset_counter() {
     tempCounter = 0;
@@ -45,6 +45,13 @@ class GenIRVisitor : public Visitor {
     std::string ret = tempCounterSt.top();
     tempCounterSt.pop();
     return ret;
+  }
+
+  std::string peek_last_result() {
+    if(tempCounterSt.empty()) {
+      exit(12);
+    }
+    return tempCounterSt.top();
   }
 
     // used to add label after ret
@@ -66,6 +73,9 @@ class GenIRVisitor : public Visitor {
   void visit(VarDecl& node) override;
   void visit(VarDef& node) override;
   // void visit(BType& node) override;
+
+  void visit(ArrayInitVal& node) override;
+
 
   void visit(RetStmt& node) override;
   void visit(AssignStmt& node) override;
@@ -95,6 +105,12 @@ class GenIRVisitor : public Visitor {
   void visit(NEExp& node) override;
   void visit(LAndExp& node) override;
   void visit(LOrExp& node) override;
+
+
+
+  void gen_const_arr_init_val_local_recur(
+      const std::vector<int>& shape, const std::vector<int>& data, int layer,
+      int& idx, std::string& ret);
 };
 
 }

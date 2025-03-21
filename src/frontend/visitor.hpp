@@ -19,6 +19,10 @@ class Type;
 class ConstDef;   // property of ConstDecl
 class VarDef;     // property of VarDecl
 
+class ArrayDims;
+class ArrayInitVal;
+
+
 class Stmt;        // inherit from BlockItem
 class RetStmt;     // inherit from Stmt
 class AssignStmt;  // inherit from Stmt
@@ -89,6 +93,16 @@ class Visitor {
   virtual void visit(Type& node) {
     throw std::runtime_error("Type is not implemented");
   }
+
+  virtual void visit(ArrayDims& node) {
+    throw std::runtime_error("ArrayDims is not implemented");
+  }
+
+  virtual void visit(ArrayInitVal& node) {
+    throw std::runtime_error("ArrayInitVal is not implemented");
+  }
+
+
 
   virtual void visit(RetStmt& node) {
     throw std::runtime_error("RetStmt is not implemented");

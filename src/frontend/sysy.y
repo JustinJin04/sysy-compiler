@@ -10,10 +10,15 @@
 #include <memory>
 #include <string>
 #include <ast.hpp>
+#include <stack>
+#include <variant>
 
 // 声明 lexer 函数和错误处理函数
 int yylex();
 void yyerror(std::unique_ptr<AST::CompUnit> &ast, const char *s);
+
+// helper stack for parsing array InitVal
+extern std::stack<std::variant<std::string, AST::ArrayInitVal*>> array_init_val_stack;
 
 using namespace std;
 
@@ -54,7 +59,7 @@ std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> Decl ConstDecl ConstDef ConstInitVal VarDecl VarDef InitVal
+%type <ast_val> Decl ConstDecl ConstDef VarDecl VarDef InitVal
 %type <ast_val> FuncDef
 %type <ast_val> Block BlockItem Stmt
 %type <ast_val> Exp LVal PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp
@@ -66,6 +71,11 @@ std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
 // Because when we move an "INT" token, we don't know whether it should be reduce to 
 // BType or FuncType, causing a shift/reduce conflict
 %type <ast_val> Type
+%type <ast_val> ArrayDims 
+
+// following don't need return value. So we use int_val and always return 0
+%type <int_val> LBrace RBrace ConstInitValList ConstInitVal
+
 
 
 
@@ -124,8 +134,6 @@ CompUnitItem
   }
   ;
 
-
-
 FuncDef
   : Type IDENT FuncFParams Block {
     auto func_def_ast = new AST::FuncDef();
@@ -144,7 +152,6 @@ FuncDef
     $$ = func_def_ast;
   }
   ;
-
 FuncFParams
   : '(' ')' {
     $$ = nullptr;
@@ -153,7 +160,6 @@ FuncFParams
     $$ = $2;
   }
   ;
-
 FuncFParamsList
   : FuncFParam {
     $$ = $1;
@@ -167,7 +173,6 @@ FuncFParamsList
     $$ = $1;
   }
   ;
-
 FuncFParam
   : Type IDENT {
     std::cout<<"Debug: FuncFParam: "<<*($2)<<std::endl;
@@ -176,7 +181,6 @@ FuncFParam
     func_fparam_ast->ident = *std::unique_ptr<std::string>($2);
     $$ = func_fparam_ast;
   }
-
 Type
   : INT {
     std::cout<<"Debug: Type"<<std::endl;
@@ -254,19 +258,106 @@ ConstDefList
     $$ = $1;
   }
   ;
+
 ConstDef
   : IDENT '=' ConstInitVal {
     auto const_def_ast = new AST::ConstDef();
     const_def_ast->ident = *std::unique_ptr<std::string>($1);
-    const_def_ast->const_init_val = cast_uptr<AST::Exp>($3);   // We don't differentiate between const and var here 
-                                                               // It's the visitor's duty to check wether it's a const
-                                                               // and add to symbol table
+    const_def_ast->const_init_val = cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()));
+    array_init_val_stack.pop();
     $$ = const_def_ast;
+  }
+  | IDENT ArrayDims '=' ConstInitVal {
+    auto const_def_ast = new AST::ConstDef();
+    const_def_ast->ident = *std::unique_ptr<std::string>($1);
+    if($2) {
+      const_def_ast->array_dims = cast_uptr<AST::ArrayDims>($2);
+    } else {
+      const_def_ast->array_dims = nullptr;
+    }
+    assert(array_init_val_stack.size() == 1 && array_init_val_stack.top().index() == 1);
+    const_def_ast->const_init_val = cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()));
+    array_init_val_stack.pop();
+    $$ = const_def_ast;
+  }
+  ;
+ArrayDims
+  : '[' ConstExp ']' {
+    auto array_dims_ast = new AST::ArrayDims();
+    array_dims_ast->exp = cast_uptr<AST::Exp>($2);
+    $$ = array_dims_ast;
+  }
+  | '[' ConstExp ']' ArrayDims {
+    auto array_dims_ast = new AST::ArrayDims();
+    array_dims_ast->exp = cast_uptr<AST::Exp>($2);
+    array_dims_ast->next_dim = cast_uptr<AST::ArrayDims>($4);
+    $$ = array_dims_ast;
+  }
+  ;
+LBrace
+  : '{' {
+    array_init_val_stack.push("{");
+    $$ = 0;
+  }
+  ;
+RBrace
+  : '}' {
+    array_init_val_stack.push("}");
+    $$ = 0;
   }
   ;
 ConstInitVal
   : ConstExp {
-    $$ = $1;
+    auto array_init_val_ast = new AST::ArrayInitVal();
+    array_init_val_ast->exp = cast_uptr<AST::Exp>($1);
+    array_init_val_stack.push(array_init_val_ast);
+    $$ = 0;
+  }
+  | LBrace RBrace {
+    array_init_val_stack.pop(); // pop rbrace
+    array_init_val_stack.pop(); // pop lbrace
+    auto array_init_val_ast = new AST::ArrayInitVal();
+    array_init_val_ast->exp = nullptr;
+    array_init_val_stack.push(array_init_val_ast);
+    $$ = 0;
+  }
+  | '{' ConstInitVal '}' {
+    auto array_init_val_ast = new AST::ArrayInitVal();
+    array_init_val_ast->exp = nullptr;
+    array_init_val_stack.pop(); // pop rbrace
+    while(array_init_val_stack.top().index() == 1) {
+      auto array_init_val = cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()));
+      array_init_val_ast->array_init_val_list.push_back(array_init_val);
+      array_init_val_stack.pop();
+    }
+    array_init_val_stack.pop(); // pop lbrace
+    array_init_val_ast->array_init_val_list.reverse();
+    array_init_val_stack.push(array_init_val_ast);
+    $$ = 0;
+  }
+  | '{' ConstInitVal ConstInitValList '}' {
+    auto array_init_val_ast = new AST::ArrayInitVal();
+    array_init_val_ast->exp = nullptr;
+    array_init_val_stack.pop(); // pop rbrace
+    while(array_init_val_stack.top().index() == 1) {
+      auto array_init_val = cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()));
+      array_init_val_ast->array_init_val_list.push_back(array_init_val);
+      array_init_val_stack.pop();
+    }
+    array_init_val_stack.pop(); // pop lbrace
+    array_init_val_ast->array_init_val_list.reverse();
+    array_init_val_stack.push(array_init_val_ast);
+    $$ = 0;
+  }
+  ;
+ConstInitValList
+  : ',' ConstInitVal {
+    // do nothing
+    $$ = 0;
+  }
+  | ',' ConstInitVal ConstInitValList {
+    // do nothing
+    $$ = 0;
   }
   ;
 ConstExp
@@ -274,6 +365,7 @@ ConstExp
     $$ = $1;
   }
   ;
+
 
 VarDecl
   : Type VarDefList ';' {
@@ -580,19 +672,25 @@ PrimaryExp
     $$ = num_exp_ast;
   }
   ;
+
 LVal
-  : IDENT {
+  : IDENT ArrayDims {
     auto lval_exp_ast = new AST::LValExp();
     lval_exp_ast->ident = *std::unique_ptr<std::string>($1);
+    if($2) {
+      lval_exp_ast->array_dims = cast_uptr<AST::ArrayDims>($2);
+    } else {
+      lval_exp_ast->array_dims = nullptr;
+    }
     $$ = lval_exp_ast;
   }
   ;
+
 Number
   : INT_CONST {
     $$ = $1;
   }
   ;
-
 
 
 %%
@@ -602,3 +700,5 @@ Number
 void yyerror(unique_ptr<AST::CompUnit> &ast, const char *s) {
   cerr << "error: " << s << endl;
 }
+
+std::stack<std::variant<std::string, AST::ArrayInitVal*>> array_init_val_stack;

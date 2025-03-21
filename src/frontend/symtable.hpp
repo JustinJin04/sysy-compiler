@@ -11,14 +11,29 @@ namespace AST {
 
 class SymbolTables {
  public:
+  struct ConstArrInfo {
+    std::string sym_name;
+    std::vector<int> dims;
+    std::vector<int> data;
+  };
+  // struct VarArrayInfo {
+  //   std::vector<int> dims;
+  //   std::vector<std:> data;
+  // };
+
+
+
   std::vector<std::unordered_map<std::string, int>> const_sym_table_stack;
   std::vector<std::unordered_map<std::string, std::string>> var_sym_table_stack;
   std::vector<std::unordered_map<std::string, std::string>> func_sym_table_stack;
 
+  std::vector<std::unordered_map<std::string, ConstArrInfo>> const_arr_sym_table_stack;
+
   enum class SymbolKind {
     CONST,
     VAR,
-    FUNC
+    FUNC,
+    CONST_ARR
   };
 
   // insert a const symbol into symbol table
@@ -35,6 +50,17 @@ class SymbolTables {
       func_sym_table_stack.back()[ident] = value;
     }
   }
+
+  // TODO: can we let symbol table to decide the symbol name of ident??????
+  // for example, array name is arr, let symbol table decide whether arr_1, arr_2, arr_3, ... to store
+  void insert_to_top(const std::string& ident, const std::vector<int>& dims, const std::vector<int>& data, SymbolKind kind);
+
+
+  /**
+   * find the first occurrence of ident in symbol table stack
+   * return the symbol kind
+   */
+  SymbolKind find(const std::string& ident);
 
 
   bool find(const std::string& ident, SymbolKind type) {
@@ -123,6 +149,10 @@ class SymbolTables {
     }
   }
   
+  /**
+   * for const scalar, return int
+   * else, return symbol name
+   */
   std::variant<int, std::string> get(const std::string& ident, SymbolKind type) {
     switch (type) {
       case SymbolKind::CONST: {
@@ -151,6 +181,8 @@ class SymbolTables {
       }
     }
   }
+
+  int get_array(const std::string& ident, const std::vector<int> array_dims);
 
 
   void push_table(){
