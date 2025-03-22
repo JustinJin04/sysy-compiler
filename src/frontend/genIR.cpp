@@ -444,55 +444,25 @@ void GenIRVisitor::visit(ConstDecl& node) {
   }
 }
 
-static void gen_const_arr_init_val_global_recur(const std::vector<int>& shape,
-                                                const std::vector<int>& data,
-                                                int layer, int& idx,
-                                                std::string& ret) {
-  assert(shape.size() >= 1);
+static void gen_array_type_recur(const std::vector<int>& shape, int layer,
+                                 std::string& ret) {
   int num_dims = shape.size();
   if (layer == num_dims) {
-    ret += std::to_string(data[idx]);
-    idx++;
+    ret += "i32";
     return;
   }
-  ret += "{";
-  for (int i = 0; i < shape[layer]; ++i) {
-    gen_const_arr_init_val_global_recur(shape, data, layer + 1, idx, ret);
-    if (i != shape[layer] - 1) {
-      ret += ", ";
-    }
-  }
-  ret += "}";
+  ret += "[";
+  gen_array_type_recur(shape, layer + 1, ret);
+  ret += ", " + std::to_string(shape[layer]) + "]";
 }
 
-static std::string gen_const_arr_init_val_global(const std::vector<int>& shape,
-                                                 const std::vector<int>& data) {
-  assert(shape.size() >= 1);
-  std::string ret;
-  int idx = 0;
-  gen_const_arr_init_val_global_recur(shape, data, 0, idx, ret);
-  return ret;
-}
-
-void GenIRVisitor::gen_const_arr_init_val_local_recur(
-  const std::vector<int>& shape, const std::vector<int>& data, int layer,
-  int& idx, std::string& ret) {
-  
-  assert(shape.size() >= 1);
-  int num_dims = shape.size();
-  if(layer == num_dims) {
-    auto last_result = pop_last_result();
-    ir_code->append("  store " + std::to_string(data[idx]) + ", " + last_result + "\n");
-    idx++;
-    return;
-  }
-  for(int i=0; i<shape[layer]; ++i){
-    auto temp_ptr = get_new_counter("ptr");
-    ir_code->append("  " + temp_ptr + " = getelementptr " + peek_last_result() + ", " + std::to_string(i) + "\n");
-    push_result(temp_ptr);
-    gen_const_arr_init_val_local_recur(shape, data, layer+1, idx, ret);
-  }
-  pop_last_result();
+void GenIRVisitor::visit(ArrayDims& node) {
+  auto link_list_visitor = LinkListVisitor(&sym_table_stack);
+  node.accept(link_list_visitor);
+  auto& shape = link_list_visitor.result;
+  std::string array_type;
+  gen_array_type_recur(shape, 0, array_type);
+  ir_code->append(array_type);
 }
 
 void GenIRVisitor::visit(ConstDef& node) {
@@ -510,7 +480,7 @@ void GenIRVisitor::visit(ConstDef& node) {
      *   3.1 if global:
      *   3.2 if local:
      */
-    auto array_evaluator = ArrayEvaluateVisitor(&sym_table_stack);
+    auto array_evaluator = ConstArrayEvaluateVisitor(&sym_table_stack);
     node.accept(array_evaluator);
     auto link_list_visitor = LinkListVisitor(&sym_table_stack);
     node.array_dims->accept(link_list_visitor);
@@ -522,10 +492,15 @@ void GenIRVisitor::visit(ConstDef& node) {
     if (node.is_global) {
       ir_code->append("global " + sym_name + " = alloc ");
       node.array_dims->accept(*this);  // generate array type like [[i32, 3], 2]
-      ir_code->append(", {");
+      ir_code->append(", ");
+
       // generate like {10, 20}
-      auto const_init_code = gen_const_arr_init_val_global(link_list_visitor.result,
-                                    array_evaluator.result);
+      std::string const_init_code;
+      int idx = 0;
+      gen_const_arr_init_val_global_recur(link_list_visitor.result,
+                                          array_evaluator.result, 0, idx,
+                                          const_init_code);
+
       ir_code->append(const_init_code);
       ir_code->append("\n");
     } else {
@@ -534,7 +509,7 @@ void GenIRVisitor::visit(ConstDef& node) {
       node.array_dims->accept(*this);  // generate array type like [[i32, 3], 2]
       ir_code->append("\n");
       /**
-       * store each value into array by using getelementptr
+       * store each value into array by using getelemptr
        * for example:
        * @arr = alloc [[i32, 3], 2]   // int a[2][3]
        * %ptr1 = getelemptr @arr, 0   // %ptr1  => *[i32, 3]
@@ -544,9 +519,11 @@ void GenIRVisitor::visit(ConstDef& node) {
        * store 1, %ptr3
        */
       int idx = 0;
-      std::string const_init_code; 
+      std::string const_init_code;
       gen_const_arr_init_val_local_recur(link_list_visitor.result,
-                                        array_evaluator.result, 0, idx, const_init_code);
+                                         array_evaluator.result, 0, idx,
+                                         const_init_code);
+
       ir_code->append(const_init_code);
       ir_code->append("\n");
     }
@@ -579,21 +556,51 @@ void GenIRVisitor::visit(AssignStmt& node) {
   std::cout << "genir visit assignstmt" << std::endl;
   // since const value must be declared
   // hence here lval must be var_symbol
-  // auto find_it = sym_table.find(node.lval->ident);
-  // auto find_result = sym_table_stack.find(node.lval->ident);
-  // if(find_result == SymbolKind::NONE) {
-  //   throw std::runtime_error("undefined symbol: " + node.lval->ident);
-  // } else if (find_result == SymbolKind::CONST) { // 1 means const symbol
-  //   throw std::runtime_error("const value cannot be assigned");
+  // auto find_var =
+  //     sym_table_stack.find(node.lval->ident, SymbolTables::SymbolKind::VAR);
+  // if (find_var == false) {
+  //   throw std::runtime_error("undefined var symbol: " + node.lval->ident);
   // }
-  // auto var_name = std::get<std::string>(find_it->second);
-  auto find_var =
-      sym_table_stack.find(node.lval->ident, SymbolTables::SymbolKind::VAR);
-  if (find_var == false) {
+  // auto var_name = std::get<std::string>(
+  //     sym_table_stack.get(node.lval->ident, SymbolTables::SymbolKind::VAR));
+
+  std::string var_name;  // maybe a scalar or array
+  auto kind = sym_table_stack.find(node.lval->ident);
+  if (kind == SymbolTables::SymbolKind::VAR) {
+    var_name = std::get<std::string>(
+        sym_table_stack.get(node.lval->ident, SymbolTables::SymbolKind::VAR));
+  } else if (kind == SymbolTables::SymbolKind::VAR_ARR) {
+    node.lval->accept(*this);
+    /**
+     * here we only need to get a ptr of the value in array, so we cannot visit lval directly
+     * for example:
+     * %ptr1 = getelemptr @arr, %0
+     * %ptr2 = getelemptr %ptr1, %1
+     * is enough
+     */
+    auto arr_sym_name = std::get<std::string>(
+        sym_table_stack.get(node.lval->ident, SymbolTables::SymbolKind::VAR_ARR));
+    auto index_ptr = node.lval->array_dims.get();
+    assert(index_ptr != nullptr);
+    std::stack<std::string> ptr_stack;
+    ptr_stack.push(arr_sym_name);
+    while (index_ptr) {
+      // index_ptr->exp
+      assert(index_ptr->exp != nullptr);
+      index_ptr->exp->accept(*this);
+      auto index_name = pop_last_result();
+      auto rptr_name = ptr_stack.top();
+      ptr_stack.pop();
+      auto lptr_name = get_new_counter();
+      ir_code->append("  " + lptr_name + " = getelemptr " + rptr_name + ", " +
+                      index_name + "\n");
+      ptr_stack.push(lptr_name);
+      index_ptr = index_ptr->next_dim.get();
+    }
+    var_name = ptr_stack.top();
+  } else {
     throw std::runtime_error("undefined var symbol: " + node.lval->ident);
   }
-  auto var_name = std::get<std::string>(
-      sym_table_stack.get(node.lval->ident, SymbolTables::SymbolKind::VAR));
 
   // start to compose ir
   // First we have to evaluate exp and push the result
@@ -604,19 +611,13 @@ void GenIRVisitor::visit(AssignStmt& node) {
 }
 
 void GenIRVisitor::visit(ExpStmt& node) {
-  auto func_call_exp = dynamic_cast<FuncCallExp*>(node.exp.get());
-  // assert(func_call_exp != nullptr);
-  if (func_call_exp) {
-    func_call_exp->accept(*this);
+  if (node.exp.get() == nullptr) {
+    std::cout << "genir visit empty stmt" << std::endl;
+    return;
   } else {
-    // we cannot ignore it since it may modify global variables
+    std::cout << "genir visit non-empty exp stmt" << std::endl;
     node.exp->accept(*this);
   }
-
-  // if(node.exp) {
-  //   node.exp->accept(*this);
-  //   pop_last_result();
-  // }
 }
 
 void GenIRVisitor::visit(BlockStmt& node) {
@@ -732,38 +733,89 @@ void GenIRVisitor::visit(ContinueStmt& node) {
 }
 
 void GenIRVisitor::visit(LValExp& node) {
-  std::cout << "genir visit lval" << std::endl;
   // auto find_it = sym_table.find(node.ident);
 
   auto kind = sym_table_stack.find(node.ident);
-  switch (kind){
+  switch (kind) {
     case SymbolTables::SymbolKind::CONST: {
       int value = std::get<int>(
-        sym_table_stack.get(node.ident, SymbolTables::SymbolKind::CONST));
+          sym_table_stack.get(node.ident, SymbolTables::SymbolKind::CONST));
       push_result(std::to_string(value));
       break;
     }
     case SymbolTables::SymbolKind::VAR: {
       auto var_name = std::get<std::string>(
-        sym_table_stack.get(node.ident, SymbolTables::SymbolKind::VAR));
+          sym_table_stack.get(node.ident, SymbolTables::SymbolKind::VAR));
       auto load_counter_name = get_new_counter();
       ir_code->append("  " + load_counter_name + " = load " + var_name + "\n");
       push_result(load_counter_name);
       break;
     }
     case SymbolTables::SymbolKind::CONST_ARR: {
-      auto link_list_visitor = LinkListVisitor(&sym_table_stack);
-      node.accept(link_list_visitor);
-      auto& shape = link_list_visitor.result;
-      int value = sym_table_stack.get_array(node.ident, shape);
-      push_result(std::to_string(value));
+      std::cout << "gen lval const arr: " << node.ident << "\n";
+      /**
+       * 1. prepare indices
+       * 2. sequentially getelemptr. for example:
+       * %ptr1 = getelemptr @arr, %0
+       * %ptr2 = getelemptr %ptr1, %1
+       * %val = load %ptr2
+       */
+      auto arr_sym_name = std::get<std::string>(
+          sym_table_stack.get(node.ident, SymbolTables::SymbolKind::CONST_ARR));
+      auto index_ptr = node.array_dims.get();
+      assert(index_ptr != nullptr);
+      std::stack<std::string> ptr_stack;
+      ptr_stack.push(arr_sym_name);
+      while (index_ptr) {
+        // index_ptr->exp
+        assert(index_ptr->exp != nullptr);
+        index_ptr->exp->accept(*this);
+        auto index_name = pop_last_result();
+        auto rptr_name = ptr_stack.top();
+        ptr_stack.pop();
+        auto lptr_name = get_new_counter();
+        ir_code->append("  " + lptr_name + " = getelemptr " + rptr_name + ", " +
+                        index_name + "\n");
+        ptr_stack.push(lptr_name);
+        index_ptr = index_ptr->next_dim.get();
+      }
+      auto result_name = get_new_counter();
+      ir_code->append("  " + result_name + " = load " + ptr_stack.top() + "\n");
+      push_result(result_name);
+
       break;
     }
-    default:{
+    case SymbolTables::SymbolKind::VAR_ARR: {
+      std::cout << "gen lval var arr: " << node.ident << "\n";
+      auto arr_sym_name = std::get<std::string>(
+          sym_table_stack.get(node.ident, SymbolTables::SymbolKind::VAR_ARR));
+      auto index_ptr = node.array_dims.get();
+      assert(index_ptr != nullptr);
+      std::stack<std::string> ptr_stack;
+      ptr_stack.push(arr_sym_name);
+      while (index_ptr) {
+        // index_ptr->exp
+        assert(index_ptr->exp != nullptr);
+        index_ptr->exp->accept(*this);
+        auto index_name = pop_last_result();
+        auto rptr_name = ptr_stack.top();
+        ptr_stack.pop();
+        auto lptr_name = get_new_counter();
+        ir_code->append("  " + lptr_name + " = getelemptr " + rptr_name + ", " +
+                        index_name + "\n");
+        ptr_stack.push(lptr_name);
+        index_ptr = index_ptr->next_dim.get();
+      }
+      auto result_name = get_new_counter();
+      ir_code->append("  " + result_name + " = load " + ptr_stack.top() + "\n");
+      push_result(result_name);
+
+      break;
+    }
+    default: {
       assert(0);
     }
   }
-
 }
 
 void GenIRVisitor::visit(VarDecl& node) {
@@ -776,36 +828,187 @@ void GenIRVisitor::visit(VarDecl& node) {
 }
 
 void GenIRVisitor::visit(VarDef& node) {
-  std::cout << "genir visit vardef" << std::endl;
   if (sym_table_stack.find_in_current(node.ident,
                                       SymbolTables::SymbolKind::VAR)) {
     throw std::runtime_error("redefined var symbol: " + node.ident);
   }
-  int count = sym_table_stack.total_accurrences(node.ident,
-                                                SymbolTables::SymbolKind::VAR);
-  auto var_symbol_name = "@" + node.ident + "_" + std::to_string(count + 1);
-  // sym_table[node.ident] = var_symbol_name;
-  sym_table_stack.insert_to_top(node.ident, var_symbol_name,
-                                SymbolTables::SymbolKind::VAR);
-  std::cout << "store var " << var_symbol_name << " into symbol table"
-            << std::endl;
 
-  // start to compose ir code
-  if (node.is_global) {
-    ir_code->append("global " + var_symbol_name + " = alloc i32, ");
-    if (node.var_init_val) {
-      auto evaluate_visitor = EvaluateVisitor(&sym_table_stack);
-      node.var_init_val->accept(evaluate_visitor);
-      ir_code->append(std::to_string(evaluate_visitor.result) + "\n");
+  if (node.array_dims) {  // array
+    /**
+     * 1. use VarArrayEvaluate to store either Exp* or int(0) into symbol table
+     * 2. if global, evaluate each array value
+     * 3. if local, prepare each array value
+     */
+    std::cout << "gen var array\n";
+    auto array_evaluator = VarArrayEvaluateVisitor(&sym_table_stack);
+    node.accept(array_evaluator);
+    auto link_list_visitor = LinkListVisitor(&sym_table_stack);
+    node.array_dims->accept(link_list_visitor);
+    sym_table_stack.insert_to_top(node.ident, link_list_visitor.result,
+                                  array_evaluator.result,
+                                  SymbolTables::SymbolKind::VAR_ARR);
+    auto sym_name = std::get<std::string>(
+        sym_table_stack.get(node.ident, SymbolTables::SymbolKind::VAR_ARR));
+
+    if (node.is_global) {
+      std::cout << "gen global var array\n";
+      ir_code->append("global " + sym_name + " = alloc ");
+      node.array_dims->accept(*this);  // generate array type like [[i32, 3], 2]
+      ir_code->append(", ");
+
+      // generate like {10, 20}. should evaluate each array value
+      int idx = 0;
+      std::string init_code;
+      gen_var_arr_init_val_global_recur(
+          link_list_visitor.result, array_evaluator.result, 0, idx, init_code);
+      ir_code->append(init_code);
+      ir_code->append("\n");
     } else {
-      ir_code->append("zeroinit\n");
+      std::cout << "gen local var array\n";
+      ir_code->append("  " + sym_name + " = alloc ");
+      push_result(sym_name);
+      node.array_dims->accept(*this);  // generate array type like [[i32, 3], 2]
+      ir_code->append("\n");
+
+      // prepare each array value
+      int idx = 0;
+      std::string init_code;
+      gen_var_arr_init_val_local_recur(
+          link_list_visitor.result, array_evaluator.result, 0, idx, init_code);
+      ir_code->append(init_code);
+      ir_code->append("\n");
     }
-  } else {
-    ir_code->append("  " + var_symbol_name + " = alloc i32\n");
-    if (node.var_init_val) {
-      node.var_init_val->accept(*this);
-      auto result = pop_last_result();
-      ir_code->append("  store " + result + ", " + var_symbol_name + "\n");
+
+  } else {  // single scalar
+    std::cout << "gen var scalar\n";
+    int count = sym_table_stack.total_accurrences(
+        node.ident, SymbolTables::SymbolKind::VAR);
+    auto var_symbol_name = "@" + node.ident + "_" + std::to_string(count + 1);
+    // sym_table[node.ident] = var_symbol_name;
+    sym_table_stack.insert_to_top(node.ident, var_symbol_name,
+                                  SymbolTables::SymbolKind::VAR);
+    std::cout << "store var " << var_symbol_name << " into symbol table"
+              << std::endl;
+
+    // start to compose ir code
+    if (node.is_global) {
+      ir_code->append("global " + var_symbol_name + " = alloc i32, ");
+      if (node.var_init_val) {
+        auto evaluate_visitor = EvaluateVisitor(&sym_table_stack);
+        node.var_init_val->exp->accept(evaluate_visitor);
+        ir_code->append(std::to_string(evaluate_visitor.result) + "\n");
+      } else {
+        ir_code->append("zeroinit\n");
+      }
+    } else {
+      ir_code->append("  " + var_symbol_name + " = alloc i32\n");
+      if (node.var_init_val) {
+        node.var_init_val->exp->accept(*this);
+        auto result = pop_last_result();
+        ir_code->append("  store " + result + ", " + var_symbol_name + "\n");
+      }
     }
   }
+}
+
+void GenIRVisitor::gen_const_arr_init_val_local_recur(
+    const std::vector<int>& shape, const std::vector<int>& data, int layer,
+    int& idx, std::string& ret) {
+  assert(shape.size() >= 1);
+  int num_dims = shape.size();
+  if (layer == num_dims) {
+    auto last_result = pop_last_result();
+    ir_code->append("  store " + std::to_string(data[idx]) + ", " +
+                    last_result + "\n");
+    idx++;
+    return;
+  }
+  for (int i = 0; i < shape[layer]; ++i) {
+    auto temp_ptr = get_new_counter("ptr");
+    ir_code->append("  " + temp_ptr + " = getelemptr " + peek_last_result() +
+                    ", " + std::to_string(i) + "\n");
+    push_result(temp_ptr);
+    gen_const_arr_init_val_local_recur(shape, data, layer + 1, idx, ret);
+  }
+  pop_last_result();
+}
+
+void GenIRVisitor::gen_const_arr_init_val_global_recur(
+    const std::vector<int>& shape, const std::vector<int>& data, int layer,
+    int& idx, std::string& ret) {
+  assert(shape.size() >= 1);
+  int num_dims = shape.size();
+  if (layer == num_dims) {
+    ret += std::to_string(data[idx]);
+    idx++;
+    return;
+  }
+  ret += "{";
+  for (int i = 0; i < shape[layer]; ++i) {
+    gen_const_arr_init_val_global_recur(shape, data, layer + 1, idx, ret);
+    if (i != shape[layer] - 1) {
+      ret += ", ";
+    }
+  }
+  ret += "}";
+}
+
+void GenIRVisitor::gen_var_arr_init_val_local_recur(
+    const std::vector<int>& shape,
+    const std::vector<std::variant<Exp*, int>>& data, int layer, int& idx,
+    std::string& ret) {
+  assert(shape.size() >= 1);
+  int num_dims = shape.size();
+  if (layer == num_dims) {
+    auto last_result = pop_last_result();
+    if (data[idx].index() == 0) {
+      // std::cout<<"gen var arr init val local recur "<<idx<<std::endl;
+      Exp* exp = std::get<Exp*>(data[idx]);
+      exp->accept(*this);
+      auto result_name = pop_last_result();
+      ir_code->append("  store " + result_name + ", " + last_result + "\n");
+    } else {
+      // std::cout<<"gen var arr init val local recur "<<idx<<std::endl;
+      ir_code->append("  store " + std::to_string(std::get<int>(data[idx])) +
+                      ", " + last_result + "\n");
+    }
+    idx++;
+    return;
+  }
+  for (int i = 0; i < shape[layer]; ++i) {
+    auto temp_ptr = get_new_counter("ptr");
+    ir_code->append("  " + temp_ptr + " = getelemptr " + peek_last_result() +
+                    ", " + std::to_string(i) + "\n");
+    push_result(temp_ptr);
+    gen_var_arr_init_val_local_recur(shape, data, layer + 1, idx, ret);
+  }
+  pop_last_result();
+}
+
+void GenIRVisitor::gen_var_arr_init_val_global_recur(
+    const std::vector<int>& shape,
+    const std::vector<std::variant<Exp*, int>>& data, int layer, int& idx,
+    std::string& ret) {
+  assert(shape.size() >= 1);
+  int num_dims = shape.size();
+  if (layer == num_dims) {
+    // ret += std::to_string(std::get<int>(data[idx]));
+    if (data[idx].index() == 0) {
+      auto evaluator = EvaluateVisitor(&sym_table_stack);
+      std::get<Exp*>(data[idx])->accept(evaluator);
+      ret += std::to_string(evaluator.result);
+    } else {
+      ret += std::to_string(std::get<int>(data[idx]));
+    }
+    idx++;
+    return;
+  }
+  ret += "{";
+  for (int i = 0; i < shape[layer]; ++i) {
+    gen_var_arr_init_val_global_recur(shape, data, layer + 1, idx, ret);
+    if (i != shape[layer] - 1) {
+      ret += ", ";
+    }
+  }
+  ret += "}";
 }

@@ -1,17 +1,16 @@
 #pragma once
 
 #include <memory>
-
-#include "visitor.hpp"
+#include <stack>
 #include <unordered_map>
 #include <variant>
-#include <stack>
-#include "symtable.hpp"
+
 #include "prune.hpp"
+#include "symtable.hpp"
+#include "visitor.hpp"
 #include "whilestack.hpp"
 
 namespace AST {
-
 
 class GenIRVisitor : public Visitor {
  public:
@@ -31,15 +30,11 @@ class GenIRVisitor : public Visitor {
     tempCounter += 1;
     return "%" + name + std::to_string(retval);
   }
-  void reset_counter() {
-    tempCounter = 0;
-  }
-  
-  void push_result(std::string result) {
-    tempCounterSt.push(result);
-  }
+  void reset_counter() { tempCounter = 0; }
+
+  void push_result(std::string result) { tempCounterSt.push(result); }
   std::string pop_last_result() {
-    if(tempCounterSt.empty()) {
+    if (tempCounterSt.empty()) {
       exit(12);
     }
     std::string ret = tempCounterSt.top();
@@ -48,19 +43,18 @@ class GenIRVisitor : public Visitor {
   }
 
   std::string peek_last_result() {
-    if(tempCounterSt.empty()) {
+    if (tempCounterSt.empty()) {
       exit(12);
     }
     return tempCounterSt.top();
   }
 
-    // used to add label after ret
+  // used to add label after ret
   // int ret_label_counter = 0;
   // used to add label before each basic block
   int block_label_counter = 0;
 
  public:
-
   void visit(CompUnit& node) override;
   void visit(FuncDef& node) override;
   // void visit(FuncType& node) override;
@@ -73,9 +67,7 @@ class GenIRVisitor : public Visitor {
   void visit(VarDecl& node) override;
   void visit(VarDef& node) override;
   // void visit(BType& node) override;
-
-  void visit(ArrayInitVal& node) override;
-
+  void visit(ArrayDims& node) override;
 
   void visit(RetStmt& node) override;
   void visit(AssignStmt& node) override;
@@ -86,7 +78,8 @@ class GenIRVisitor : public Visitor {
   void visit(BreakStmt& node) override;
   void visit(ContinueStmt& node) override;
 
-  // virtual void visit(Exp& node) = 0;      // TODO: should exp be pure virtual?
+  // virtual void visit(Exp& node) = 0;      // TODO: should exp be pure
+  // virtual?
 
   void visit(NumberExp& node) override;
   void visit(LValExp& node) override;
@@ -106,11 +99,31 @@ class GenIRVisitor : public Visitor {
   void visit(LAndExp& node) override;
   void visit(LOrExp& node) override;
 
+  void gen_const_arr_init_val_local_recur(const std::vector<int>& shape,
+                                          const std::vector<int>& data,
+                                          int layer, int& idx,
+                                          std::string& ret);
+
+  void gen_const_arr_init_val_global_recur(const std::vector<int>& shape,
+                                           const std::vector<int>& data,
+                                           int layer, int& idx,
+                                           std::string& ret);
+
+  void gen_var_arr_init_val_local_recur(
+      const std::vector<int>& shape,
+      const std::vector<std::variant<Exp*, int>>& data, int layer, int& idx,
+      std::string& ret);
+
+  void gen_var_arr_init_val_global_recur(
+      const std::vector<int>& shape,
+      const std::vector<std::variant<Exp*, int>>& data, int layer, int& idx,
+      std::string& ret);
 
 
-  void gen_const_arr_init_val_local_recur(
-      const std::vector<int>& shape, const std::vector<int>& data, int layer,
-      int& idx, std::string& ret);
+  void gen_array_indices(std::vector<std::string>& indices, std::string& arr_sym_name);
+
+
+
 };
 
-}
+}  // namespace AST

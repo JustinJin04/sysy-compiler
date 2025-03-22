@@ -15,6 +15,10 @@ void VarDef::accept(Visitor& v) { v.visit(*this); }
 // void BType::accept(Visitor& v) { v.visit(*this); }
 void Type::accept(Visitor& v) { v.visit(*this); }
 
+void ArrayInitVal::accept(Visitor& v) { v.visit(*this); }
+void ArrayDims::accept(Visitor& v) { v.visit(*this); }
+
+
 void RetStmt::accept(Visitor& v) { v.visit(*this); }
 void AssignStmt::accept(Visitor& v) { v.visit(*this); }
 void ExpStmt::accept(Visitor& v) { v.visit(*this); }

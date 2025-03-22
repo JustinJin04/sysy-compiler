@@ -205,10 +205,13 @@ class VarDecl : public Decl {
 class VarDef : public Base {
  public:
   std::string ident;  // TOKEN name, should be inserted into symbol table
-  std::unique_ptr<Exp> var_init_val = nullptr;
+  // std::unique_ptr<Exp> var_init_val = nullptr;
   std::unique_ptr<VarDef> next_var_def = nullptr;
-
   bool is_global = false;
+
+
+  std::unique_ptr<ArrayDims> array_dims = nullptr;
+  std::unique_ptr<ArrayInitVal> var_init_val = nullptr;
 
   void accept(Visitor& v) override;
 };

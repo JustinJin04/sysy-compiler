@@ -5,11 +5,13 @@
 #include <variant>
 #include "symtable.hpp"
 #include <cassert>
+#include <algorithm>
 
 namespace AST {
 
 class EvaluateVisitor;
-class ArrayEvaluateVisitor;
+class ConstArrayEvaluateVisitor;
+class VarArrayEvaluateVisitor;
 class LinkListVisitor;
 
 class EvaluateVisitor : public Visitor {
@@ -18,7 +20,7 @@ class EvaluateVisitor : public Visitor {
   // std::unordered_map<std::string, std::variant<int, std::string>> sym_table;
   SymbolTables* sym_table_stack;
 
-  EvaluateVisitor(SymbolTables* other_sym_table=nullptr){
+  EvaluateVisitor(SymbolTables* other_sym_table){
     sym_table_stack = other_sym_table;
   }
 
@@ -140,12 +142,38 @@ class EvaluateVisitor : public Visitor {
 
 };
 
-class ArrayEvaluateVisitor : public Visitor {
+
+class LinkListVisitor : public Visitor {
+  public:
+   std::vector<int> result; 
+   SymbolTables* sym_table_stack;
+ 
+   LinkListVisitor(SymbolTables* other_sym_table){
+     sym_table_stack = other_sym_table;
+   }
+ 
+   void visit(ArrayDims& dims) override {
+     assert(dims.exp != nullptr);
+     EvaluateVisitor evaluator(sym_table_stack);
+      dims.exp->accept(evaluator);
+     result.push_back(evaluator.result);
+     auto ptr = dims.next_dim.get();
+     while(ptr){
+       assert(ptr->exp != nullptr);
+       ptr->exp->accept(evaluator);
+       result.push_back(evaluator.result);
+       ptr = ptr->next_dim.get();
+     }
+   }
+ };
+
+
+class ConstArrayEvaluateVisitor : public Visitor {
  public:
   std::vector<int> result;
   SymbolTables* sym_table_stack;
 
-  ArrayEvaluateVisitor(SymbolTables* other_sym_table=nullptr){
+  ConstArrayEvaluateVisitor(SymbolTables* other_sym_table){
     sym_table_stack = other_sym_table;
   }
 
@@ -159,8 +187,7 @@ class ArrayEvaluateVisitor : public Visitor {
    * };
    */
 
-  int constdef_recur(const std::vector<int>& shape, int layer, ArrayInitVal* node, EvaluateVisitor& evaluator, std::vector<int>& result) {
-    int num_dims = shape.size();
+  int constdef_recur(const std::vector<int>& shape, int layer, ArrayInitVal* node, EvaluateVisitor& evaluator) {
     int list_size = node->array_init_val_hierarchy.size();
     int push_num = 0;
 
@@ -181,7 +208,7 @@ class ArrayEvaluateVisitor : public Visitor {
           st.push(top_vec);
         }
       }
-      return shape.size() - st.top().size();
+      return static_cast<int>(shape.size() - st.top().size());
     };
 
     for(int i=0;i<list_size;++i) {
@@ -191,8 +218,8 @@ class ArrayEvaluateVisitor : public Visitor {
         result.push_back(evaluator.result);
         push_num += 1;
       } else {
-        int new_layer = compute_layer(shape, result.size());
-        push_num += constdef_recur(shape, new_layer, node->array_init_val_hierarchy[i].get(), evaluator, result);
+        int new_layer = std::max(compute_layer(shape, result.size()), layer+1);
+        push_num += constdef_recur(shape, new_layer, node->array_init_val_hierarchy[i].get(), evaluator);
       }
     }
     int total_num = 1;
@@ -213,23 +240,89 @@ class ArrayEvaluateVisitor : public Visitor {
     auto& shape = shape_visitor.result;
     EvaluateVisitor evaluator(sym_table_stack);
     assert(node.const_init_val != nullptr && node.const_init_val->exp == nullptr);
-    constdef_recur(shape, 0, node.const_init_val.get(), evaluator, result);
+    result.clear();
+    constdef_recur(shape, 0, node.const_init_val.get(), evaluator);
   }
 };
 
-class LinkListVisitor : public Visitor {
+class VarArrayEvaluateVisitor : public Visitor {
  public:
-  std::vector<int> result; 
+  std::vector<std::variant<Exp* , int>> result;
   SymbolTables* sym_table_stack;
 
-  LinkListVisitor(SymbolTables* other_sym_table=nullptr){
+  VarArrayEvaluateVisitor(SymbolTables* other_sym_table){
     sym_table_stack = other_sym_table;
   }
 
-  void visit(ArrayDims& dims) override;
+  int vardef_recur(const std::vector<int>& shape, int layer, ArrayInitVal* node) {
+    int list_size = node->array_init_val_hierarchy.size();
+    std::cout<<"layer: "<<layer<<" list_size: "<<list_size<<std::endl;
+    int push_num = 0;
+
+    auto compute_layer = [](const std::vector<int>& shape, int size){
+      std::stack<std::vector<int>> st;
+      st.push(shape);
+      while(size > 0){
+        if(st.top().size() == 0){
+          st.pop();
+          size -= 1;
+          continue;
+        }
+        auto top_vec = st.top();
+        st.pop();
+        int first_dim = top_vec[0];
+        top_vec.erase(top_vec.begin());
+        for(int i=0;i<first_dim;++i){
+          st.push(top_vec);
+        }
+      }
+      return static_cast<int>(shape.size() - st.top().size());
+    };
+
+    for(int i=0;i<list_size;++i) {
+      if(node->array_init_val_hierarchy[i]->exp) {
+        // Note there are two possible exp
+        // one is that exp is bind to a name
+        // the other is that exp is a number
+        // we must store it as number if it is a number
+        // otherwise, we store the Exp*
+        // result.push_back(node->array_init_val_hierarchy[i]->exp.get());
+        // TODO: this is a temporary solution
+        try{
+          EvaluateVisitor evaluator(sym_table_stack);
+          node->array_init_val_hierarchy[i]->exp->accept(evaluator);
+          result.push_back(evaluator.result);
+        } catch (std::runtime_error& e){
+          result.push_back(node->array_init_val_hierarchy[i]->exp.get());
+        }
+        push_num += 1;
+      } else {
+        int new_layer = std::max(compute_layer(shape, result.size()), layer+1);
+        push_num += vardef_recur(shape, new_layer, node->array_init_val_hierarchy[i].get());
+      }
+    }
+    int total_num = 1;
+    for(int i=layer;i<shape.size();++i){
+      total_num *= shape[i];
+    }
+    while(push_num < total_num){
+      result.push_back(0);
+      push_num += 1;
+    }
+    return total_num;
+  }
+
+  // flattern the array_init_val_hierarchy into std::vector<std::variant<Exp*, int>>
+  void visit(VarDef& node) override {
+    auto shape_visitor = LinkListVisitor(sym_table_stack);
+    node.array_dims->accept(shape_visitor);
+    auto& shape = shape_visitor.result;
+    result.clear();
+    assert(node.var_init_val);
+    vardef_recur(shape, 0, node.var_init_val.get());
+  }
+
 };
-
-
 
 
 

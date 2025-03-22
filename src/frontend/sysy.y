@@ -12,6 +12,7 @@
 #include <ast.hpp>
 #include <stack>
 #include <variant>
+#include <algorithm>
 
 // 声明 lexer 函数和错误处理函数
 int yylex();
@@ -28,8 +29,8 @@ template<typename TARGET>
 std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
   TARGET* target = dynamic_cast<TARGET*>(base);
   if (target == nullptr) {
-    // throw std::runtime_error("cast_uptr failed");
-    exit(10);
+    throw std::runtime_error("cast_uptr failed");
+    // assert(0);
   }
   return std::unique_ptr<TARGET>(target);
 }
@@ -59,7 +60,7 @@ std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> Decl ConstDecl ConstDef VarDecl VarDef InitVal
+%type <ast_val> Decl ConstDecl ConstDef VarDecl VarDef
 %type <ast_val> FuncDef
 %type <ast_val> Block BlockItem Stmt
 %type <ast_val> Exp LVal PrimaryExp UnaryExp MulExp AddExp RelExp EqExp LAndExp LOrExp ConstExp
@@ -74,7 +75,7 @@ std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
 %type <ast_val> ArrayDims 
 
 // following don't need return value. So we use int_val and always return 0
-%type <int_val> LBrace RBrace ConstInitValList ConstInitVal
+%type <int_val> LBrace RBrace ConstInitValList ConstInitVal InitVal InitValList
 
 
 
@@ -270,11 +271,7 @@ ConstDef
   | IDENT ArrayDims '=' ConstInitVal {
     auto const_def_ast = new AST::ConstDef();
     const_def_ast->ident = *std::unique_ptr<std::string>($1);
-    if($2) {
-      const_def_ast->array_dims = cast_uptr<AST::ArrayDims>($2);
-    } else {
-      const_def_ast->array_dims = nullptr;
-    }
+    const_def_ast->array_dims = cast_uptr<AST::ArrayDims>($2);
     assert(array_init_val_stack.size() == 1 && array_init_val_stack.top().index() == 1);
     const_def_ast->const_init_val = cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()));
     array_init_val_stack.pop();
@@ -282,32 +279,36 @@ ConstDef
   }
   ;
 ArrayDims
-  : '[' ConstExp ']' {
+  : '[' Exp ']' {
     auto array_dims_ast = new AST::ArrayDims();
     array_dims_ast->exp = cast_uptr<AST::Exp>($2);
     $$ = array_dims_ast;
   }
-  | '[' ConstExp ']' ArrayDims {
+  | '[' Exp ']' ArrayDims {
     auto array_dims_ast = new AST::ArrayDims();
     array_dims_ast->exp = cast_uptr<AST::Exp>($2);
     array_dims_ast->next_dim = cast_uptr<AST::ArrayDims>($4);
     $$ = array_dims_ast;
   }
   ;
+
 LBrace
   : '{' {
+    std::cout<<"Debug: LBrace"<<std::endl;
     array_init_val_stack.push("{");
     $$ = 0;
   }
   ;
 RBrace
   : '}' {
+    std::cout<<"Debug: RBrace"<<std::endl;
     array_init_val_stack.push("}");
     $$ = 0;
   }
   ;
 ConstInitVal
   : ConstExp {
+    std::cout<<"Debug: ConstInitVal => ConstExp"<<std::endl;
     auto array_init_val_ast = new AST::ArrayInitVal();
     array_init_val_ast->exp = cast_uptr<AST::Exp>($1);
     array_init_val_stack.push(array_init_val_ast);
@@ -321,41 +322,48 @@ ConstInitVal
     array_init_val_stack.push(array_init_val_ast);
     $$ = 0;
   }
-  | '{' ConstInitVal '}' {
+  | LBrace ConstInitVal RBrace {
+    std::cout<<"Debug: ConstInitVal => LBrace ConstInitVal RBrace"<<std::endl;
     auto array_init_val_ast = new AST::ArrayInitVal();
     array_init_val_ast->exp = nullptr;
     array_init_val_stack.pop(); // pop rbrace
     while(array_init_val_stack.top().index() == 1) {
-      auto array_init_val = cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()));
-      array_init_val_ast->array_init_val_list.push_back(array_init_val);
+      array_init_val_ast->array_init_val_hierarchy.push_back(
+        cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()))
+      );
       array_init_val_stack.pop();
     }
     array_init_val_stack.pop(); // pop lbrace
-    array_init_val_ast->array_init_val_list.reverse();
+    std::reverse(array_init_val_ast->array_init_val_hierarchy.begin(), array_init_val_ast->array_init_val_hierarchy.end());
     array_init_val_stack.push(array_init_val_ast);
     $$ = 0;
   }
-  | '{' ConstInitVal ConstInitValList '}' {
+  | LBrace ConstInitVal ConstInitValList RBrace {
+    std::cout<<"Debug: ConstInitVal => LBrace ConstInitVal ConstInitValList RBrace"<<std::endl;
     auto array_init_val_ast = new AST::ArrayInitVal();
     array_init_val_ast->exp = nullptr;
+    std::cout<<"stack size: "<<array_init_val_stack.size()<<std::endl;
     array_init_val_stack.pop(); // pop rbrace
     while(array_init_val_stack.top().index() == 1) {
-      auto array_init_val = cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()));
-      array_init_val_ast->array_init_val_list.push_back(array_init_val);
+      array_init_val_ast->array_init_val_hierarchy.push_back(
+        cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()))
+      );
       array_init_val_stack.pop();
     }
     array_init_val_stack.pop(); // pop lbrace
-    array_init_val_ast->array_init_val_list.reverse();
+    std::reverse(array_init_val_ast->array_init_val_hierarchy.begin(), array_init_val_ast->array_init_val_hierarchy.end());
     array_init_val_stack.push(array_init_val_ast);
     $$ = 0;
   }
   ;
 ConstInitValList
   : ',' ConstInitVal {
+    std::cout<<"Debug: ConstInitValList => ',' ConstInitVal"<<std::endl;
     // do nothing
     $$ = 0;
   }
   | ',' ConstInitVal ConstInitValList {
+    std::cout<<"Debug: ConstInitValList => ',' ConstInitVal ConstInitValList"<<std::endl;
     // do nothing
     $$ = 0;
   }
@@ -365,8 +373,6 @@ ConstExp
     $$ = $1;
   }
   ;
-
-
 VarDecl
   : Type VarDefList ';' {
     std::cout<<"Debug: VarDecl"<<std::endl;
@@ -399,14 +405,87 @@ VarDef
   | IDENT '=' InitVal {
     auto var_def_ast = new AST::VarDef();
     var_def_ast->ident = *std::unique_ptr<std::string>($1);
-    var_def_ast->var_init_val = cast_uptr<AST::Exp>($3);
+    var_def_ast->var_init_val = cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()));
+    array_init_val_stack.pop();
+    $$ = var_def_ast;
+  }
+  | IDENT ArrayDims {
+    auto var_def_ast = new AST::VarDef();
+    var_def_ast->ident = *std::unique_ptr<std::string>($1);
+    var_def_ast->array_dims = cast_uptr<AST::ArrayDims>($2);
+    auto init_val = new AST::ArrayInitVal();
+    init_val->exp = nullptr;
+    var_def_ast->var_init_val = cast_uptr<AST::ArrayInitVal>(init_val);
+    $$ = var_def_ast;
+  }
+  | IDENT ArrayDims '=' InitVal {
+    auto var_def_ast = new AST::VarDef();
+    var_def_ast->ident = *std::unique_ptr<std::string>($1);
+    var_def_ast->array_dims = cast_uptr<AST::ArrayDims>($2);
+    var_def_ast->var_init_val = cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()));
+    array_init_val_stack.pop();
     $$ = var_def_ast;
   }
   ;
-
 InitVal
   : Exp {
-    $$ = $1;
+    std::cout<<"Debug: InitVal => Exp"<<std::endl;
+    auto array_init_val_ast = new AST::ArrayInitVal();
+    array_init_val_ast->exp = cast_uptr<AST::Exp>($1);
+    array_init_val_stack.push(array_init_val_ast);
+    $$ = 0;
+  }
+  | LBrace RBrace {
+    array_init_val_stack.pop(); // pop rbrace
+    array_init_val_stack.pop(); // pop lbrace
+    auto array_init_val_ast = new AST::ArrayInitVal();
+    array_init_val_ast->exp = nullptr;
+    array_init_val_stack.push(array_init_val_ast);
+    $$ = 0;
+  }
+  | LBrace InitVal RBrace {
+    auto array_init_val_ast = new AST::ArrayInitVal();
+    array_init_val_ast->exp = nullptr;
+    array_init_val_stack.pop(); // pop rbrace
+    while(array_init_val_stack.top().index() == 1) {
+      array_init_val_ast->array_init_val_hierarchy.push_back(
+        cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()))
+      );
+      array_init_val_stack.pop();
+    }
+    array_init_val_stack.pop(); // pop lbrace
+    std::reverse(array_init_val_ast->array_init_val_hierarchy.begin(), array_init_val_ast->array_init_val_hierarchy.end());
+    array_init_val_stack.push(array_init_val_ast);
+    $$ = 0;
+  }
+  | LBrace InitVal InitValList RBrace {
+    std::cout<<"Debug: ConstInitVal => LBrace InitVal InitValList RBrace"<<std::endl;
+    auto array_init_val_ast = new AST::ArrayInitVal();
+    array_init_val_ast->exp = nullptr;
+    std::cout<<"stack size: "<<array_init_val_stack.size()<<std::endl;
+    array_init_val_stack.pop(); // pop rbrace
+    while(array_init_val_stack.top().index() == 1) {
+      array_init_val_ast->array_init_val_hierarchy.push_back(
+        cast_uptr<AST::ArrayInitVal>(std::get<AST::ArrayInitVal*>(array_init_val_stack.top()))
+      );
+      array_init_val_stack.pop();
+    }
+    array_init_val_stack.pop(); // pop lbrace
+    std::reverse(array_init_val_ast->array_init_val_hierarchy.begin(), array_init_val_ast->array_init_val_hierarchy.end());
+    array_init_val_stack.push(array_init_val_ast);
+    $$ = 0;
+  }
+  ;
+InitValList
+  : ',' InitVal {
+    std::cout<<"Debug: InitValList => ',' InitVal"<<std::endl;
+    // do nothing
+    $$ = 0;
+  }
+  | ',' InitVal InitValList {
+    std::cout<<"Debug: InitValList => ',' InitVal InitValList"<<std::endl;
+    // do nothing
+    $$ = 0;
   }
   ;
 
@@ -682,6 +761,12 @@ LVal
     } else {
       lval_exp_ast->array_dims = nullptr;
     }
+    $$ = lval_exp_ast;
+  }
+  | IDENT {
+    auto lval_exp_ast = new AST::LValExp();
+    lval_exp_ast->ident = *std::unique_ptr<std::string>($1);
+    lval_exp_ast->array_dims = nullptr;
     $$ = lval_exp_ast;
   }
   ;
