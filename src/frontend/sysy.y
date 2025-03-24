@@ -72,7 +72,7 @@ std::unique_ptr<TARGET> cast_uptr(AST::Base* base) {
 // Because when we move an "INT" token, we don't know whether it should be reduce to 
 // BType or FuncType, causing a shift/reduce conflict
 %type <ast_val> Type
-%type <ast_val> ArrayDims 
+%type <ast_val> ArrayDims
 
 // following don't need return value. So we use int_val and always return 0
 %type <int_val> LBrace RBrace ConstInitValList ConstInitVal InitVal InitValList
@@ -182,6 +182,22 @@ FuncFParam
     func_fparam_ast->ident = *std::unique_ptr<std::string>($2);
     $$ = func_fparam_ast;
   }
+  | Type IDENT '[' ']' {
+    auto func_fparam_arr_ast = new AST::FuncFParamArr();
+    func_fparam_arr_ast->btype = cast_uptr<AST::Type>($1);
+    func_fparam_arr_ast->ident = *std::unique_ptr<std::string>($2);
+    func_fparam_arr_ast->array_dims = nullptr;
+    $$ = func_fparam_arr_ast;
+  }
+  | Type IDENT '[' ']' ArrayDims {
+    auto func_fparam_arr_ast = new AST::FuncFParamArr();
+    func_fparam_arr_ast->btype = cast_uptr<AST::Type>($1);
+    func_fparam_arr_ast->ident = *std::unique_ptr<std::string>($2);
+    func_fparam_arr_ast->array_dims = cast_uptr<AST::ArrayDims>($5);
+    $$ = func_fparam_arr_ast;
+  }
+  ;
+
 Type
   : INT {
     std::cout<<"Debug: Type"<<std::endl;

@@ -68,6 +68,7 @@ class GenIRVisitor : public Visitor {
   void visit(VarDef& node) override;
   // void visit(BType& node) override;
   void visit(ArrayDims& node) override;
+  void visit(FuncFParamArr& node) override;
 
   void visit(RetStmt& node) override;
   void visit(AssignStmt& node) override;

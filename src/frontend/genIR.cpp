@@ -20,8 +20,8 @@ void GenIRVisitor::visit(CompUnit& node) {
   ir_code->append("decl @getch(): i32\n");
   sym_table_stack.insert_to_top("getch", "@getch(): i32",
                                 SymbolTables::SymbolKind::FUNC);
-  ir_code->append("decl @getarray(): i32\n");
-  sym_table_stack.insert_to_top("getarray", "@getarray(): i32",
+  ir_code->append("decl @getarray(*i32): i32\n");
+  sym_table_stack.insert_to_top("getarray", "@getarray(*i32): i32",
                                 SymbolTables::SymbolKind::FUNC);
   ir_code->append("decl @putint(i32): i32\n");
   sym_table_stack.insert_to_top("putint", "@putint(i32): i32",
@@ -29,8 +29,8 @@ void GenIRVisitor::visit(CompUnit& node) {
   ir_code->append("decl @putch(i32): i32\n");
   sym_table_stack.insert_to_top("putch", "@putch(i32): i32",
                                 SymbolTables::SymbolKind::FUNC);
-  ir_code->append("decl @putarray(i32): i32\n");
-  sym_table_stack.insert_to_top("putarray", "@putarray(i32): i32",
+  ir_code->append("decl @putarray(i32, *i32): i32\n");
+  sym_table_stack.insert_to_top("putarray", "@putarray(i32, *i32): i32",
                                 SymbolTables::SymbolKind::FUNC);
   ir_code->append("decl @starttime()\n");
   sym_table_stack.insert_to_top("starttime", "@starttime()",
@@ -68,7 +68,14 @@ void GenIRVisitor::visit(FuncDef& node) {
   if (node.func_fparam) {
     auto ptr = node.func_fparam.get();
     while (ptr) {
-      func_symbol += "@" + ptr->ident + ": i32,";
+      auto arr_ptr = dynamic_cast<FuncFParamArr*>(ptr);
+      if (arr_ptr) {  // is array
+        auto type_visitor = ArrTypeEvaluateVisitor(&sym_table_stack);
+        arr_ptr->accept(type_visitor);
+        func_symbol += "@" + ptr->ident + ": " + type_visitor.type_name + ",";
+      } else {  // scalar
+        func_symbol += "@" + ptr->ident + ": i32,";
+      }
       ptr = ptr->next_func_fparam.get();
     }
     func_symbol.pop_back();
@@ -125,6 +132,31 @@ void GenIRVisitor::visit(FuncDef& node) {
   }
   ir_code->append("}\n");
   sym_table_stack.pop_table();
+}
+
+void GenIRVisitor::visit(FuncFParamArr& node) {
+  std::cout << "genir visit fparamarr" << std::endl;
+  /**
+   * 1. insert to symtable
+   * 2. gen ir
+   * for examples: int a[][3]
+   * @arr = alloc *[i32, 3]        // @arr 的类型是 **[i32, 3]
+   * %ptr1 = load @arr             // %ptr1 的类型是 *[i32, 3]
+   * %ptr2 = getptr %ptr1, 1       // %ptr2 的类型是 *[i32, 3]
+   * %ptr3 = getelemptr %ptr2, 2   // %ptr3 的类型是 *i32
+   * %value = load %ptr3           // %value 的类型是 i32
+   */
+  auto fparam_name = "@" + node.ident;
+  auto ir_symbol_name = "%" + node.ident;
+  auto type_visitor = ArrTypeEvaluateVisitor(&sym_table_stack);
+  node.accept(type_visitor);
+  auto type_name = type_visitor.type_name;
+  int dims = type_visitor.dims;
+  sym_table_stack.insert_to_top(node.ident, type_name, dims,
+                                SymbolTables::SymbolKind::PTR);
+  ir_code->append("  " + ir_symbol_name + " = alloc " + type_name + "\n");
+  ir_code->append("  store " + fparam_name + ", " + ir_symbol_name + "\n");
+  // here we do not need to store since it's a pointer
 }
 
 void GenIRVisitor::visit(FuncFParam& node) {
@@ -570,16 +602,14 @@ void GenIRVisitor::visit(AssignStmt& node) {
     var_name = std::get<std::string>(
         sym_table_stack.get(node.lval->ident, SymbolTables::SymbolKind::VAR));
   } else if (kind == SymbolTables::SymbolKind::VAR_ARR) {
-    node.lval->accept(*this);
+    // node.lval->accept(*this);
     /**
-     * here we only need to get a ptr of the value in array, so we cannot visit lval directly
-     * for example:
-     * %ptr1 = getelemptr @arr, %0
-     * %ptr2 = getelemptr %ptr1, %1
-     * is enough
+     * here we only need to get a ptr of the value in array, so we cannot visit
+     * lval directly for example: %ptr1 = getelemptr @arr, %0 %ptr2 = getelemptr
+     * %ptr1, %1 is enough
      */
-    auto arr_sym_name = std::get<std::string>(
-        sym_table_stack.get(node.lval->ident, SymbolTables::SymbolKind::VAR_ARR));
+    auto arr_sym_name = std::get<std::string>(sym_table_stack.get(
+        node.lval->ident, SymbolTables::SymbolKind::VAR_ARR));
     auto index_ptr = node.lval->array_dims.get();
     assert(index_ptr != nullptr);
     std::stack<std::string> ptr_stack;
@@ -598,6 +628,28 @@ void GenIRVisitor::visit(AssignStmt& node) {
       index_ptr = index_ptr->next_dim.get();
     }
     var_name = ptr_stack.top();
+  } else if (kind == SymbolTables::SymbolKind::PTR) {
+    // similar to VAR_ARR, we just don't need to load ptr at last compared to lval
+    auto sym_name = std::get<std::string>(
+        sym_table_stack.get(node.lval->ident, SymbolTables::SymbolKind::PTR));
+    auto tmp_0 = get_new_counter();
+    ir_code->append("  " + tmp_0 + " = load " + sym_name + "\n");
+    auto tmp_1 = get_new_counter();
+    auto ptr = node.lval->array_dims.get();
+    assert(ptr != nullptr);
+    ptr->exp->accept(*this);
+    auto array_offset = pop_last_result();
+    ir_code->append("  " + tmp_1 + " = getptr " + tmp_0 + ", " + array_offset + "\n");
+    ptr = ptr->next_dim.get();
+    while(ptr) {
+      auto tmp_2 = get_new_counter();
+      ptr->exp->accept(*this);
+      auto array_offset = pop_last_result();
+      ir_code->append("  " + tmp_2 + " = getelemptr " + tmp_1 + ", " + array_offset + "\n");
+      tmp_1 = tmp_2;
+      ptr = ptr->next_dim.get();
+    }
+    var_name = tmp_1;
   } else {
     throw std::runtime_error("undefined var symbol: " + node.lval->ident);
   }
@@ -786,15 +838,29 @@ void GenIRVisitor::visit(LValExp& node) {
       break;
     }
     case SymbolTables::SymbolKind::VAR_ARR: {
+      /**
+       * for examples: int a[2][3]; f(a[1])
+       * @a // *[[i32, 3], 2]
+       * %0 = getelemptr @a, 1 // *[i32, 3]
+       * %1 = getelemptr %0, 0 // *i32
+       * 
+       * // f(a[1][2])
+       * %0 = getelemptr @a, 1 // *[i32, 3]
+       * %1 = getelemptr %0, 2 // *i32
+       * %2 = load %1 
+       */
       std::cout << "gen lval var arr: " << node.ident << "\n";
       auto arr_sym_name = std::get<std::string>(
           sym_table_stack.get(node.ident, SymbolTables::SymbolKind::VAR_ARR));
       auto index_ptr = node.array_dims.get();
-      assert(index_ptr != nullptr);
+      // assert(index_ptr != nullptr);
       std::stack<std::string> ptr_stack;
       ptr_stack.push(arr_sym_name);
+      int array_dim = sym_table_stack.get_var_arr_info(node.ident).dims.size();
+      int refer_dim = 0;
       while (index_ptr) {
         // index_ptr->exp
+        refer_dim += 1;
         assert(index_ptr->exp != nullptr);
         index_ptr->exp->accept(*this);
         auto index_name = pop_last_result();
@@ -806,10 +872,84 @@ void GenIRVisitor::visit(LValExp& node) {
         ptr_stack.push(lptr_name);
         index_ptr = index_ptr->next_dim.get();
       }
-      auto result_name = get_new_counter();
-      ir_code->append("  " + result_name + " = load " + ptr_stack.top() + "\n");
-      push_result(result_name);
-
+      /**
+       * 1. when referred to a value in array, load it
+       * 2. when referred to an array, use getelemptr to convert to ptr
+       */
+      if(refer_dim < array_dim) {
+        auto result_name = get_new_counter();
+        ir_code->append("  " + result_name + " = getelemptr " + ptr_stack.top() + ", 0\n");
+        push_result(result_name);
+      } else {
+        auto result_name = get_new_counter();
+        ir_code->append("  " + result_name + " = load " + ptr_stack.top() + "\n");
+        push_result(result_name);
+      }
+      break;
+    }
+    case SymbolTables::SymbolKind::PTR: {
+      /*
+       * for examples: f(int arr[]) return a[1]
+       * %0 = load %arr // *i32
+       * %1 = getptr %0, 1 // *i32
+       * %2 = load %1 // i32
+       * 
+       * f(int arr[][3]) return arr[1][2]
+       * %0 = load %arr // *[i32, 3]
+       * %1 = getptr %0, 1 // *[i32, 3]
+       * %2 = getelemptr %1, 2 // *i32
+       * %3 = load %2 // i32
+       * 
+       * f(int arr[][3][4]) return arr[1][2][3]
+       * %0 = load %arr // *[[i32, 4], 3]
+       * %1 = getptr %0, 1 // *[[i32, 4], 3]
+       * %2 = getelemptr %1, 2 // *[i32, 4]
+       * %3 = getelemptr %2, 3 // *i32
+       * %4 = load %3 // i32
+       * 
+       * f(int arr[][10]) return arr[1]
+       * %0 = load %arr // *[i32, 10]
+       * %1 = getptr %0, 1 // *[i32, 10]
+       * %2 = getelemptr %1, 0 // *i32
+       * 
+       * f(int arr[]) g(arr);
+       * %0 = load %arr // *i32
+       */
+      std::cout<<"gen lval ptr: "<<node.ident<<"\n";
+      auto sym_name = sym_table_stack.get_ptr_info(node.ident).sym_name;
+      int array_dim = sym_table_stack.get_ptr_info(node.ident).dims;
+      auto tmp_0 = get_new_counter();
+      ir_code->append("  " + tmp_0 + " = load " + sym_name + "\n");
+      auto ptr = node.array_dims.get();
+      // assert(ptr != nullptr);
+      if(ptr == nullptr){
+        push_result(tmp_0);
+        return;
+      }
+      auto tmp_1 = get_new_counter();
+      ptr->exp->accept(*this);
+      auto array_offset = pop_last_result();
+      ir_code->append("  " + tmp_1 + " = getptr " + tmp_0 + ", " + array_offset + "\n");
+      ptr = ptr->next_dim.get();
+      int refer_dim = 1;
+      while(ptr) {
+        refer_dim += 1;
+        auto tmp_2 = get_new_counter();
+        ptr->exp->accept(*this);
+        auto array_offset = pop_last_result();
+        ir_code->append("  " + tmp_2 + " = getelemptr " + tmp_1 + ", " + array_offset + "\n");
+        tmp_1 = tmp_2;
+        ptr = ptr->next_dim.get();
+      }
+      if(refer_dim < array_dim) {
+        auto result_name = get_new_counter();
+        ir_code->append("  " + result_name + " = getelemptr " + tmp_1 + ", 0\n");
+        push_result(result_name);
+      } else {
+        auto result_name = get_new_counter();
+        ir_code->append("  " + result_name + " = load " + tmp_1 + "\n");
+        push_result(result_name);
+      }
       break;
     }
     default: {

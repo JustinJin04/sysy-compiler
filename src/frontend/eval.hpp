@@ -324,7 +324,58 @@ class VarArrayEvaluateVisitor : public Visitor {
 
 };
 
+/**
+ * for examples:
+ * int a[] => *i32
+ * int a[][2] => *[i32, 2]
+ * int a[][2][3] => *[[i32, 3], 2]
+ */
+class ArrTypeEvaluateVisitor : public Visitor {
+ public:
+  std::string type_name;
+  int dims;
+  SymbolTables* sym_table_stack;
 
+  ArrTypeEvaluateVisitor(SymbolTables* other_sym_table){
+    sym_table_stack = other_sym_table;
+  }
+
+  void type_recur(const std::vector<int>& shape, int layer) {
+    int num_dims = shape.size();
+    if (layer == num_dims) {
+      type_name += "i32";
+      return;
+    }
+    type_name += "[";
+    type_recur(shape, layer + 1);
+    type_name += ", " + std::to_string(shape[layer]) + "]";
+  }
+
+  void visit(FuncFParamArr& node) override {
+    type_name = "*";
+    dims = 1;
+    if(node.array_dims == nullptr){
+      type_name += "i32";
+      return;
+    }
+    auto shape_visitor = LinkListVisitor(sym_table_stack);
+    node.array_dims->accept(shape_visitor);
+    auto& shape = shape_visitor.result;
+    dims += shape.size();
+    type_recur(shape, 0);
+  }
+
+  // void gen_array_type_recur(const std::vector<int>& shape, int layer) {
+  //   int num_dims = shape.size();
+  //   if (layer == num_dims) {
+  //     result += "i32";
+  //     return;
+  //   }
+  //   result += "[";
+  //   gen_array_type_recur(shape, layer + 1);
+  //   result += ", " + std::to_string(shape[layer]) + "]";
+  // }
+};
 
 
 

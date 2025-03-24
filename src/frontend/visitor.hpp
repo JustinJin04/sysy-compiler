@@ -21,6 +21,7 @@ class VarDef;     // property of VarDecl
 
 class ArrayDims;
 class ArrayInitVal;
+class FuncFParamArr;
 
 
 class Stmt;        // inherit from BlockItem
@@ -100,6 +101,10 @@ class Visitor {
 
   virtual void visit(ArrayInitVal& node) {
     throw std::runtime_error("ArrayInitVal is not implemented");
+  }
+
+  virtual void visit(FuncFParamArr& node) {
+    throw std::runtime_error("FuncFParamArr is not implemented");
   }
 
 

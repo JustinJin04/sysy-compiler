@@ -17,6 +17,7 @@ void Type::accept(Visitor& v) { v.visit(*this); }
 
 void ArrayInitVal::accept(Visitor& v) { v.visit(*this); }
 void ArrayDims::accept(Visitor& v) { v.visit(*this); }
+void FuncFParamArr::accept(Visitor& v) { v.visit(*this); }
 
 
 void RetStmt::accept(Visitor& v) { v.visit(*this); }

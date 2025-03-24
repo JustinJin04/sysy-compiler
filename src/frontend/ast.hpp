@@ -35,6 +35,7 @@ class VarDef;     // property of VarDecl
 // class GlobalVarDef;
 class ArrayInitVal;
 class ArrayDims;
+class FuncFParamArr;
 
 
 class Stmt;        // inherit from BlockItem
@@ -97,6 +98,18 @@ class FuncFParam : public Base {
   std::unique_ptr<Type> btype;
   std::string ident;
   std::unique_ptr<FuncFParam> next_func_fparam = nullptr;
+
+  virtual void accept(Visitor& v) override;
+};
+
+class FuncFParamArr : public FuncFParam {
+ public:
+  /**
+   * for examples:
+   * int a[]: array_dims = nullptr
+   * int a[][2]: array_dims = {2}
+   */
+  std::unique_ptr<ArrayDims> array_dims = nullptr;
 
   void accept(Visitor& v) override;
 };
