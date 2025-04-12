@@ -57,13 +57,7 @@ int main(int argc, const char *argv[]) {
       fclose(output_file);
     }
   } else if (mode == "-riscv") {
-    output_file = fopen(output.c_str(), "w");
-    if(output_file) {
-      auto asm_code = std::make_unique<std::string>();
-      IR_to_ASM(ir, asm_code);
-      fwrite(asm_code->c_str(), sizeof(char), asm_code->length(), output_file);
-      fclose(output_file);
-    }
+    IR_to_ASM(ir, output);
   }
 
   return 0;

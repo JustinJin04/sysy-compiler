@@ -2,8 +2,9 @@
 #include <koopa.h>
 #include <cassert>
 #include "genASM.hpp"
+#include <fstream>
 
-void IR_to_ASM(std::unique_ptr<std::string>& ir, std::unique_ptr<std::string>& asm_code){
+void IR_to_ASM(std::unique_ptr<std::string>& ir, const std::string& file_name){
   // ir to raw program
   koopa_program_t program;
   koopa_error_code_t ret = koopa_parse_from_string(ir->c_str(), &program);
@@ -16,10 +17,8 @@ void IR_to_ASM(std::unique_ptr<std::string>& ir, std::unique_ptr<std::string>& a
   koopa_delete_program(program);
 
   // generate asm
-  KOOPA::GenASMVisitor gen_asm_visitor;
+  KOOPA::GenASMVisitor gen_asm_visitor(file_name);
   gen_asm_visitor.visit(raw);
-  *asm_code = gen_asm_visitor.asm_code;
-  std::cout<<"asm code:\n"<<*asm_code<<std::endl; 
 
   // 处理完成, 释放 raw program builder 占用的内存
   // 注意, raw program 中所有的指针指向的内存均为 raw program builder 的内存

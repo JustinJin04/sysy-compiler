@@ -3,6 +3,7 @@
 #include <vector>
 #include<iostream>
 #include <string.h>
+#include <cassert>
 
 namespace KOOPA {
 
@@ -40,6 +41,7 @@ class RegPool{
   }
 
   void freeReg(std::string reg){
+    // assert(reg[0] == 't');
     int idx = std::stoi(reg.substr(1));
     if(idx < 0 || idx >= size){
       throw std::runtime_error("Invalid register index");

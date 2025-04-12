@@ -107,7 +107,6 @@ CompUnitItemList
 
 CompUnitItem
   : VarDecl {
-    std::cout<<"Debug: Global VarDecl"<<std::endl;
     auto var_decl = dynamic_cast<AST::VarDecl*>($1);
     if(var_decl == nullptr) {
       exit(10);
@@ -118,19 +117,16 @@ CompUnitItem
     $$ = $1;
   } 
   | ConstDecl {
-    std::cout<<"Debug: Global ConstDecl"<<std::endl;
     auto const_decl = dynamic_cast<AST::ConstDecl*>($1);
     if(const_decl == nullptr) {
       exit(10);
     }
     for(auto const_def = const_decl->const_def.get(); const_def != nullptr; const_def = const_def->next_const_def.get()) {
       const_def->is_global = true;
-      std::cout<<"Debug: ConstDef: "<<const_def->ident<<std::endl;
     }
     $$ = $1;
   }
   | FuncDef {
-    std::cout<<"Debug: FuncDef"<<std::endl;
     $$ = $1;
   }
   ;
@@ -176,7 +172,6 @@ FuncFParamsList
   ;
 FuncFParam
   : Type IDENT {
-    std::cout<<"Debug: FuncFParam: "<<*($2)<<std::endl;
     auto func_fparam_ast = new AST::FuncFParam();
     func_fparam_ast->btype = cast_uptr<AST::Type>($1);
     func_fparam_ast->ident = *std::unique_ptr<std::string>($2);
@@ -200,7 +195,6 @@ FuncFParam
 
 Type
   : INT {
-    std::cout<<"Debug: Type"<<std::endl;
     auto func_type_ast = new AST::Type();
     func_type_ast->type_name = "int";
     $$ = func_type_ast;  
@@ -255,7 +249,6 @@ Decl
   ;
 ConstDecl
   : CONST Type ConstDefList ';' { // Note that ConstDefList is a link list of type ConstDef
-    std::cout<<"Debug: ConstDecl"<<std::endl;
     auto const_decl_ast = new AST::ConstDecl();
     const_decl_ast->btype = cast_uptr<AST::Type>($2);
     const_decl_ast->const_def = cast_uptr<AST::ConstDef>($3);
@@ -310,21 +303,18 @@ ArrayDims
 
 LBrace
   : '{' {
-    std::cout<<"Debug: LBrace"<<std::endl;
     array_init_val_stack.push("{");
     $$ = 0;
   }
   ;
 RBrace
   : '}' {
-    std::cout<<"Debug: RBrace"<<std::endl;
     array_init_val_stack.push("}");
     $$ = 0;
   }
   ;
 ConstInitVal
   : ConstExp {
-    std::cout<<"Debug: ConstInitVal => ConstExp"<<std::endl;
     auto array_init_val_ast = new AST::ArrayInitVal();
     array_init_val_ast->exp = cast_uptr<AST::Exp>($1);
     array_init_val_stack.push(array_init_val_ast);
@@ -339,7 +329,6 @@ ConstInitVal
     $$ = 0;
   }
   | LBrace ConstInitVal RBrace {
-    std::cout<<"Debug: ConstInitVal => LBrace ConstInitVal RBrace"<<std::endl;
     auto array_init_val_ast = new AST::ArrayInitVal();
     array_init_val_ast->exp = nullptr;
     array_init_val_stack.pop(); // pop rbrace
@@ -355,7 +344,6 @@ ConstInitVal
     $$ = 0;
   }
   | LBrace ConstInitVal ConstInitValList RBrace {
-    std::cout<<"Debug: ConstInitVal => LBrace ConstInitVal ConstInitValList RBrace"<<std::endl;
     auto array_init_val_ast = new AST::ArrayInitVal();
     array_init_val_ast->exp = nullptr;
     std::cout<<"stack size: "<<array_init_val_stack.size()<<std::endl;
@@ -374,12 +362,10 @@ ConstInitVal
   ;
 ConstInitValList
   : ',' ConstInitVal {
-    std::cout<<"Debug: ConstInitValList => ',' ConstInitVal"<<std::endl;
     // do nothing
     $$ = 0;
   }
   | ',' ConstInitVal ConstInitValList {
-    std::cout<<"Debug: ConstInitValList => ',' ConstInitVal ConstInitValList"<<std::endl;
     // do nothing
     $$ = 0;
   }
@@ -391,7 +377,6 @@ ConstExp
   ;
 VarDecl
   : Type VarDefList ';' {
-    std::cout<<"Debug: VarDecl"<<std::endl;
     auto var_decl_ast = new AST::VarDecl();
     var_decl_ast->btype = cast_uptr<AST::Type>($1);
     var_decl_ast->var_def = cast_uptr<AST::VarDef>($2);
@@ -400,7 +385,6 @@ VarDecl
   ;
 VarDefList
   : VarDef {
-    std::cout<<"Debug: VarDefList"<<std::endl;
     $$ = $1;
   }
   | VarDef ',' VarDefList {
@@ -445,7 +429,6 @@ VarDef
   ;
 InitVal
   : Exp {
-    std::cout<<"Debug: InitVal => Exp"<<std::endl;
     auto array_init_val_ast = new AST::ArrayInitVal();
     array_init_val_ast->exp = cast_uptr<AST::Exp>($1);
     array_init_val_stack.push(array_init_val_ast);
@@ -475,7 +458,6 @@ InitVal
     $$ = 0;
   }
   | LBrace InitVal InitValList RBrace {
-    std::cout<<"Debug: ConstInitVal => LBrace InitVal InitValList RBrace"<<std::endl;
     auto array_init_val_ast = new AST::ArrayInitVal();
     array_init_val_ast->exp = nullptr;
     std::cout<<"stack size: "<<array_init_val_stack.size()<<std::endl;
@@ -494,12 +476,10 @@ InitVal
   ;
 InitValList
   : ',' InitVal {
-    std::cout<<"Debug: InitValList => ',' InitVal"<<std::endl;
     // do nothing
     $$ = 0;
   }
   | ',' InitVal InitValList {
-    std::cout<<"Debug: InitValList => ',' InitVal InitValList"<<std::endl;
     // do nothing
     $$ = 0;
   }

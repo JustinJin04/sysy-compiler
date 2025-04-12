@@ -6,37 +6,41 @@
 #include <string>
 #include <unordered_map>
 #include "regpool.hpp"
+#include "stack.hpp"
+#include <fstream>
 
 namespace KOOPA {
 
 class GenASMVisitor : public Visitor {
  public:
-  
-  std::string asm_code;
 
-  int stack_offset = 0;
-  int stack_size = 0;
+  std::ofstream code_stream;
 
-  std::unordered_map<koopa_raw_value_t, int> value_to_offset;
+  FuncStack func_stack;
 
   RegPool reg_pool;
 
-  // used to add label after ret
-  // int ret_label_counter = 0;
+  GenASMVisitor(const std::string& output_file):
+    code_stream(output_file, std::ios::out | std::ios::trunc),
+    func_stack(16),
+    reg_pool(7) {
+    if (!code_stream.is_open()) {
+      throw std::runtime_error("Failed to open output file");
+    }
+  }
 
+  ~GenASMVisitor() {
+    code_stream.close();
+  }
 
   void visit(const koopa_raw_program_t& program) override;
   void visit(const koopa_raw_value_t& value) override;
   void visit(const koopa_raw_function_t& func) override;
   void visit(const koopa_raw_basic_block_t& bb) override;
 
-
-  // void visit(const koopa_raw_integer_t& value) override;
   void visit(const koopa_raw_return_t& value) override;
-  // void visit(const koopa_raw_binary_t& value) override;
 
   void visit(const koopa_raw_store_t& value) override;
-  // void visit(const koopa_raw_load_t& value) override;
 };
 
 

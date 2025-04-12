@@ -5,3 +5,5 @@ debug/*
 backend_legacy/*
 
 .*
+
+playground/*

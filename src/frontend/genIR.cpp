@@ -102,7 +102,7 @@ void GenIRVisitor::visit(FuncDef& node) {
   }
 
   // start to generate ir
-  ir_code->append("fun " + func_symbol + " {\n%entry:\n");
+  ir_code->append("fun " + func_symbol + " {\n%entry_"+node.ident+":\n");
 
   // allocate stack for fparam
   auto fparam_ptr = node.func_fparam.get();

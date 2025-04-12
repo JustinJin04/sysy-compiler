@@ -41,6 +41,10 @@ class Visitor {
     throw std::runtime_error("StoreOp not implemented");
   }
 
+  // virtual void visit(const koopa_raw_global_alloc_t& value) {
+  //   throw std::runtime_error("GlobalAlloc not implemented");
+  // }
+
   // virtual void visit(const koopa_raw_load_t& value) {
   //   throw std::runtime_error("LoadOp not implemented");
   // }
