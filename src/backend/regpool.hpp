@@ -44,7 +44,9 @@ class RegPool{
     // assert(reg[0] == 't');
     int idx = std::stoi(reg.substr(1));
     if(idx < 0 || idx >= size){
-      throw std::runtime_error("Invalid register index");
+      // throw std::runtime_error("Invalid register index");
+      std::cout<<"reg: " << reg << " is not in the pool" << std::endl;
+      return;
     }
     reg_index_pool[idx] = 0;
   }

@@ -50,21 +50,34 @@ class FuncStack{
     offset = new_size;
     value_to_offset.clear();
     has_ra = false;
+
+    // value_to_info.clear();
   }
 
   void insert(const koopa_raw_value_t& value) {
-    int value_size = 0;
-    if(value->ty->tag == KOOPA_RTT_POINTER) {
-      value_size = get_type_width(value->ty->data.pointer.base);
-    } else if(value->ty->tag == KOOPA_RTT_INT32) {
-      value_size = 4;
+    // std::cout<<"insert type: "<<value->ty->tag<<std::endl;
+    if(value->ty->tag == KOOPA_RTT_POINTER){
+      assert(value->kind.tag == KOOPA_RVT_ALLOC || 
+             value->kind.tag == KOOPA_RVT_GET_ELEM_PTR ||
+             value->kind.tag == KOOPA_RVT_GET_PTR ||
+             value->kind.tag == KOOPA_RVT_LOAD);
     } else {
-      assert(0);
+      assert(value->ty->tag == KOOPA_RTT_INT32);
     }
-    // std::cout<<"value_size: " << value_size << std::endl;
+
+
+    int value_size = 0;
+    if(value->kind.tag == KOOPA_RVT_ALLOC){
+      assert(value->ty->tag == KOOPA_RTT_POINTER);
+      value_size = get_type_width(value->ty->data.pointer.base);
+    } else {
+      value_size = 4;
+    }
+
     offset -= value_size;
     value_to_offset[value] = offset;
   }
+
 
   int get_offset(const koopa_raw_value_t& value){
     auto it = value_to_offset.find(value);
@@ -89,6 +102,15 @@ class FuncStack{
     assert(has_ra);
     return size - 4;
   }
+
+  // StorageType get_type(const koopa_raw_value_t& value){
+  //   auto it = value_to_type.find(value);
+  //   if(it != value_to_type.end()){
+  //     return it->second;
+  //   } else {
+  //     throw std::runtime_error("Value not found in stack");
+  //   }
+  // }
 
 
 };

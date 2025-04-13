@@ -3,9 +3,9 @@
 #include <cassert>
 #include <string>
 
+#include "aggregate.hpp"
 #include "prepareOperand.hpp"
 #include "stack.hpp"
-#include "aggregate.hpp"
 #include "utils.hpp"
 
 namespace KOOPA {
@@ -26,9 +26,9 @@ void GenASMVisitor::visit(const koopa_raw_program_t& raw) {
   }
 }
 
-
 void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
   const auto& kind = raw_value->kind;
+  // std::cout << "kind.tag: " << kind.tag << std::endl;
   switch (kind.tag) {
     case KOOPA_RVT_ALLOC: {
       /**1. bind value to stack_offset
@@ -51,14 +51,16 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
                            std::to_string(kind.data.global_alloc.init->kind.data
                                               .integer.value)
                     << std::endl;
-      } else if (kind.data.global_alloc.init->kind.tag == KOOPA_RVT_AGGREGATE){
+      } else if (kind.data.global_alloc.init->kind.tag == KOOPA_RVT_AGGREGATE) {
         AggregateVisitor aggregate_visitor;
-        aggregate_visitor.visit(kind.data.global_alloc.init->kind.data.aggregate);
+        aggregate_visitor.visit(
+            kind.data.global_alloc.init->kind.data.aggregate);
         auto& init_values = aggregate_visitor.init_values;
-        for(int i=0;i<init_values.size();++i){
-          code_stream << "  .word " + std::to_string(init_values[i]) << std::endl;
+        for (int i = 0; i < init_values.size(); ++i) {
+          code_stream << "  .word " + std::to_string(init_values[i])
+                      << std::endl;
         }
-      }else {
+      } else {
         assert(0);
       }
       break;
@@ -69,25 +71,44 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
        * 3. store register to stack_offset(sp)
        * 4. move stack_offset
        */
-      auto prepare_op_visitor = PrepareOperandVisitor(&func_stack, &reg_pool);
-      prepare_op_visitor.visit(kind.data.load.src);
-      code_stream << prepare_op_visitor.asm_code;
-      auto& load_reg_name = prepare_op_visitor.load_reg_name;
-      func_stack.insert(raw_value);
-      int stack_offset = func_stack.get_offset(raw_value);
-      if (stack_offset < 2048) {
-        code_stream << "  sw " + load_reg_name + ", " +
-                           std::to_string(stack_offset) + "(sp)"
-                    << std::endl;
+
+      auto& src = raw_value->kind.data.load.src;
+      assert(src->ty->tag == KOOPA_RTT_POINTER);
+      // assert(src->ty->data.pointer.base->tag == KOOPA_RTT_INT32);
+      /**
+       * lw t0, offset(sp)
+       */
+      auto load_reg_name = reg_pool.getReg();
+      if(func_stack.find(src)){
+        int stack_offset = func_stack.get_offset(src);
+        if(stack_offset < 2048 && stack_offset >= -2048) {
+          code_stream << "  lw " + load_reg_name + ", " +
+                            std::to_string(stack_offset) + "(sp)"
+                      << std::endl;
+        } else {
+          auto tmp_reg = reg_pool.getReg();
+          code_stream << "  li " + tmp_reg + ", " +
+                            std::to_string(stack_offset)
+                      << std::endl;
+          code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
+          code_stream << "  lw " + load_reg_name + ", 0(" + tmp_reg + ")"
+                      << std::endl;
+          reg_pool.freeReg(tmp_reg);
+        }
+        if(src->kind.tag == KOOPA_RVT_GET_ELEM_PTR || src->kind.tag == KOOPA_RVT_GET_PTR) {
+          code_stream << "  lw " + load_reg_name + ", 0(" + load_reg_name + ")"
+                      << std::endl;
+        }
       } else {
-        auto tmp_reg = reg_pool.getReg();
-        code_stream << "  li " + tmp_reg + ", " + std::to_string(stack_offset)
+        assert(src->kind.tag == KOOPA_RVT_GLOBAL_ALLOC);
+        code_stream << "  la " + load_reg_name + ", " +
+                           std::string(src->name).substr(1)
                     << std::endl;
-        code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
-        code_stream << "  sw " + load_reg_name + ", 0(" + tmp_reg + ")"
+        code_stream << "  lw " + load_reg_name + ", 0(" + load_reg_name + ")"
                     << std::endl;
-        reg_pool.freeReg(tmp_reg);
       }
+      store_func_stack(raw_value, load_reg_name);
+
       reg_pool.freeReg(load_reg_name);
       break;
     }
@@ -97,25 +118,27 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
     }
     case KOOPA_RVT_GET_PTR: {
       /**
-       * 1. load src address (not the content in src address, so don't use prepare operand) to register
+       * 1. load src address (not the content in src address, so don't use
+       * prepare operand) to register
        * 2. load dest content to register
        * 3. calculate ptr offset (*dest * width(src->base))
        * 4. add offset to src
        * 5. store to stack
-       * 
+       *
        * for examples:
-       * @arr = alloc *[i32, 3] 
+       * @arr = alloc *[i32, 3]
        * %ptr1 = load @arr
-       * %ptr2 = getptr %ptr1, 1 
-       * 
+       * %ptr2 = getptr %ptr1, 1
+       *
        * @arr at 24(sp)
        * %ptr1 at 20(sp)
        */
+      // assert(0);
       auto& src_value = raw_value->kind.data.get_ptr.src;
       auto& index_value = raw_value->kind.data.get_ptr.index;
       assert(src_value->ty->tag == KOOPA_RTT_POINTER);
 
-      int stack_offset = func_stack.get_offset(src_value);
+      // int stack_offset = func_stack.get_offset(src_value);
       int array_offset = get_type_width(src_value->ty->data.pointer.base);
       auto temp_reg_0 = reg_pool.getReg();
       auto prepare_operand_visitor =
@@ -125,39 +148,100 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       auto temp_reg_2 = reg_pool.getReg();
 
       // start to gen code
-      if(stack_offset < 2048) {
-        code_stream << "  add " + temp_reg_0 + ", sp, " + std::to_string(stack_offset) << std::endl;
+      if (func_stack.find(src_value)) {
+        int offset = func_stack.get_offset(src_value);
+        if (offset < 2048 && offset >= -2048) {
+          code_stream << "  lw " + temp_reg_0 + ", " +
+                             std::to_string(offset) + "(sp)"
+                      << std::endl;
+        } else {
+          auto tmp_reg = reg_pool.getReg();
+          code_stream << "  li " + tmp_reg + ", " + std::to_string(offset)
+                      << std::endl;
+          code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
+          code_stream << "  lw " + temp_reg_0 + ", 0(" + tmp_reg + ")" << std::endl;
+          reg_pool.freeReg(tmp_reg);
+        }
+        // int stack_offset = func_stack.get_offset(src_value);
+        // if (stack_offset < 2048 && stack_offset >= -2048) {
+        //   code_stream << "  add " + temp_reg_0 + ", sp, " +
+        //                      std::to_string(stack_offset)
+        //               << std::endl;
+        // } else {
+        //   code_stream << "  li " + temp_reg_0 + ", " +
+        //                      std::to_string(stack_offset)
+        //               << std::endl;
+        //   code_stream << "  add " + temp_reg_0 + ", sp, " + temp_reg_0
+        //               << std::endl;
+        // }
+        // int offset = func_stack.get_offset(src_value);
+        // if(src_value->kind.tag == KOOPA_RVT_GET_ELEM_PTR || src_value->kind.tag == KOOPA_RVT_GET_PTR) {
+        //   if (offset < 2048 && offset >= -2048) {
+        //     code_stream << "  lw " + temp_reg_0 + ", " +
+        //                        std::to_string(offset) + "(sp)"
+        //                 << std::endl;
+        //   } else {
+        //     auto tmp_reg = reg_pool.getReg();
+        //     code_stream << "  li " + tmp_reg + ", " + std::to_string(offset)
+        //                 << std::endl;
+        //     code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
+        //     code_stream << "  lw " + temp_reg_0 + ", 0(" + tmp_reg + ")" << std::endl;
+        //     reg_pool.freeReg(tmp_reg);
+        //   }
+        // } else if(src_value->kind.tag == KOOPA_RVT_ALLOC){
+        //   if (offset < 2048 && offset >= -2048) {
+        //     code_stream << "  add " + temp_reg_0 + ", sp, " +
+        //                         std::to_string(offset)
+        //                 << std::endl;
+        //   } else {
+        //     code_stream << "  li " + temp_reg_0 + ", " +
+        //                         std::to_string(offset)
+        //                 << std::endl;
+        //     code_stream << "  add " + temp_reg_0 + ", sp, " + temp_reg_0
+        //                 << std::endl;
+        //   }
+        // } else {
+        //   std::cout<<"src_value->kind.tag: " << src_value->kind.tag << std::endl;
+        //   assert(0);
+        // } 
+
       } else {
-        code_stream << "  li " + temp_reg_0 + ", " + std::to_string(stack_offset) << std::endl;
-        code_stream << "  add " + temp_reg_0 + ", sp, " + temp_reg_0 << std::endl;
+        assert(src_value->kind.tag == KOOPA_RVT_GLOBAL_ALLOC);
+        code_stream << "  la " + temp_reg_0 + ", " +
+                           std::string(src_value->name).substr(1)
+                    << std::endl;
       }
       code_stream << prepare_operand_visitor.asm_code;
-      code_stream << "  li " + temp_reg_2 + ", " +
-                         std::to_string(array_offset) << std::endl;
+      code_stream << "  li " + temp_reg_2 + ", " + std::to_string(array_offset)
+                  << std::endl;
       code_stream << "  mul " + index_reg_name + ", " + index_reg_name + ", " +
-                         temp_reg_2 << std::endl;
+                         temp_reg_2
+                  << std::endl;
       code_stream << "  add " + temp_reg_0 + ", " + temp_reg_0 + ", " +
-                          index_reg_name << std::endl;
+                         index_reg_name
+                  << std::endl;
       store_func_stack(raw_value, temp_reg_0);
 
       // release temp_reg_name
-      // note that index_reg_name will be automatically freed when PrepareOperandVisitor destroyed
+      // note that index_reg_name will be automatically freed when
+      // PrepareOperandVisitor destroyed
       reg_pool.freeReg(temp_reg_0);
       reg_pool.freeReg(temp_reg_2);
       break;
     }
     case KOOPA_RVT_GET_ELEM_PTR: {
       /**
-       * 1. load src address (not the content in src address, so don't use prepare operand) to register
+       * 1. load src address (not the content in src address, so don't use
+       * prepare operand) to register
        * 2. load dest content to register
        * 3. calculate ptr offset (*dest * width(src->array->base))
        * 4. add offset to src
        * 5. store to stack
-       * 
+       *
        * for examples:
        * @arr = alloc [i32, 2]
        * %ptr = getelemptr @arr, 1
-       * 
+       *
        * @arr at 24(sp)
        * add t0, sp, 24
        * li t1, 1
@@ -171,8 +255,9 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       assert(src_value->ty->tag == KOOPA_RTT_POINTER);
       assert(src_value->ty->data.pointer.base->tag == KOOPA_RTT_ARRAY);
 
-      int stack_offset = func_stack.get_offset(src_value);
-      int array_offset = get_type_width(src_value->ty->data.pointer.base->data.array.base);
+      // int stack_offset = func_stack.get_offset(src_value);
+      int array_offset =
+          get_type_width(src_value->ty->data.pointer.base->data.array.base);
       auto temp_reg_0 = reg_pool.getReg();
       auto prepare_operand_visitor =
           PrepareOperandVisitor(&func_stack, &reg_pool);
@@ -181,25 +266,73 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       auto temp_reg_2 = reg_pool.getReg();
 
       // start to gen code
-      if(stack_offset < 2048) {
-        code_stream << "  add " + temp_reg_0 + ", sp, " + std::to_string(stack_offset) << std::endl;
+      if (func_stack.find(src_value)) {
+        // int stack_offset = func_stack.get_offset(src_value);
+        // if (stack_offset < 2048 && stack_offset >= -2048) {
+        //   code_stream << "  add " + temp_reg_0 + ", sp, " +
+        //                       std::to_string(stack_offset)
+        //               << std::endl;
+        // } else {
+        //   code_stream << "  li " + temp_reg_0 + ", " +
+        //                       std::to_string(stack_offset)
+        //               << std::endl;
+        //   code_stream << "  add " + temp_reg_0 + ", sp, " + temp_reg_0
+        //               << std::endl;
+        // }
+        int offset = func_stack.get_offset(src_value);
+        if(src_value->kind.tag == KOOPA_RVT_GET_ELEM_PTR || src_value->kind.tag == KOOPA_RVT_GET_PTR) {
+          if (offset < 2048 && offset >= -2048) {
+            code_stream << "  lw " + temp_reg_0 + ", " +
+                               std::to_string(offset) + "(sp)"
+                        << std::endl;
+          } else {
+            auto tmp_reg = reg_pool.getReg();
+            code_stream << "  li " + tmp_reg + ", " + std::to_string(offset)
+                        << std::endl;
+            code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
+            code_stream << "  lw " + temp_reg_0 + ", 0(" + tmp_reg + ")" << std::endl;
+            reg_pool.freeReg(tmp_reg);
+          }
+        } else if(src_value->kind.tag == KOOPA_RVT_ALLOC){
+          if (offset < 2048 && offset >= -2048) {
+            code_stream << "  add " + temp_reg_0 + ", sp, " +
+                                std::to_string(offset)
+                        << std::endl;
+          } else {
+            code_stream << "  li " + temp_reg_0 + ", " +
+                                std::to_string(offset)
+                        << std::endl;
+            code_stream << "  add " + temp_reg_0 + ", sp, " + temp_reg_0
+                        << std::endl;
+          }
+        } else {
+          assert(0);
+        }
+
       } else {
-        code_stream << "  li " + temp_reg_0 + ", " + std::to_string(stack_offset) << std::endl;
-        code_stream << "  add " + temp_reg_0 + ", sp, " + temp_reg_0 << std::endl;
+        assert(src_value->kind.tag == KOOPA_RVT_GLOBAL_ALLOC);
+        code_stream << "  la " + temp_reg_0 + ", " +
+                           std::string(src_value->name).substr(1)
+                    << std::endl;
       }
+
       code_stream << prepare_operand_visitor.asm_code;
-      code_stream << "  li " + temp_reg_2 + ", " +
-                         std::to_string(array_offset) << std::endl;
+      code_stream << "  li " + temp_reg_2 + ", " + std::to_string(array_offset)
+                  << std::endl;
       code_stream << "  mul " + index_reg_name + ", " + index_reg_name + ", " +
-                         temp_reg_2 << std::endl;
+                         temp_reg_2
+                  << std::endl;
       code_stream << "  add " + temp_reg_0 + ", " + temp_reg_0 + ", " +
-                          index_reg_name << std::endl;
+                         index_reg_name
+                  << std::endl;
       store_func_stack(raw_value, temp_reg_0);
 
       // release temp_reg_name
-      // note that index_reg_name will be automatically freed when PrepareOperandVisitor destroyed
+      // note that index_reg_name will be automatically freed when
+      // PrepareOperandVisitor destroyed
       reg_pool.freeReg(temp_reg_0);
       reg_pool.freeReg(temp_reg_2);
+
       break;
     }
     case KOOPA_RVT_BINARY: {
@@ -282,16 +415,18 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
         }
       }
 
-      func_stack.insert(raw_value);
-      int stack_offset = func_stack.get_offset(raw_value);
-      if (stack_offset < 2048) {
-        code_stream << "  sw t0, " + std::to_string(stack_offset) + "(sp)"
-                    << std::endl;
-      } else {
-        code_stream << "  li t1, " + std::to_string(stack_offset) << std::endl;
-        code_stream << "  add t1, sp, t1" << std::endl;
-        code_stream << "  sw t0, 0(t1)" << std::endl;
-      }
+      // func_stack.insert(raw_value);
+      // int stack_offset = func_stack.get_offset(raw_value);
+      // if (stack_offset < 2048 && stack_offset >= -2048) {
+      //   code_stream << "  sw t0, " + std::to_string(stack_offset) + "(sp)"
+      //               << std::endl;
+      // } else {
+      //   code_stream << "  li t1, " + std::to_string(stack_offset) <<
+      //   std::endl; code_stream << "  add t1, sp, t1" << std::endl;
+      //   code_stream << "  sw t0, 0(t1)" << std::endl;
+      // }
+
+      store_func_stack(raw_value, "t0");
 
       reg_pool.freeReg("t0");
       reg_pool.freeReg("t1");
@@ -343,7 +478,7 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
         code_stream << prepareOperandVisitor.asm_code;
         auto& load_reg_name = prepareOperandVisitor.load_reg_name;
         int offset = (i - 8) * 4;
-        if (offset < 2048) {
+        if (offset < 2048 && offset >= -2048) {
           code_stream << "  sw " + load_reg_name + ", " +
                              std::to_string(offset) + "(sp)"
                       << std::endl;
@@ -361,22 +496,26 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       code_stream << "  call " +
                          std::string(kind.data.call.callee->name).substr(1)
                   << std::endl;
-
-      if (kind.data.call.callee->ty->data.function.ret) {
+      if (kind.data.call.callee->ty->data.function.ret->tag != KOOPA_RTT_UNIT) {
+        assert(kind.data.call.callee->ty->data.function.ret->tag ==
+               KOOPA_RTT_INT32);
         // store return value to stack
-        func_stack.insert(raw_value);
-        int stack_offset = func_stack.get_offset(raw_value);
-        if (stack_offset < 2048) {
-          code_stream << "  sw a0, " + std::to_string(stack_offset) + "(sp)"
-                      << std::endl;
-        } else {
-          auto tmp_reg = reg_pool.getReg();
-          code_stream << "  li " + tmp_reg + ", " + std::to_string(stack_offset)
-                      << std::endl;
-          code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
-          code_stream << "  sw a0, 0(" + tmp_reg + ")" << std::endl;
-          reg_pool.freeReg(tmp_reg);
-        }
+        // func_stack.insert(raw_value);
+        // int stack_offset = func_stack.get_offset(raw_value);
+        // if (stack_offset < 2048 && stack_offset >= -2048) {
+        //   code_stream << "  sw a0, " + std::to_string(stack_offset) + "(sp)"
+        //               << std::endl;
+        // } else {
+        //   auto tmp_reg = reg_pool.getReg();
+        //   code_stream << "  li " + tmp_reg + ", " +
+        //   std::to_string(stack_offset)
+        //               << std::endl;
+        //   code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg <<
+        //   std::endl; code_stream << "  sw a0, 0(" + tmp_reg + ")" <<
+        //   std::endl; reg_pool.freeReg(tmp_reg);
+        // }
+
+        store_func_stack(raw_value, "a0");
       }
       break;
     }
@@ -418,7 +557,7 @@ void GenASMVisitor::visit(const koopa_raw_function_t& raw_func) {
     // int offset = stack_offset - 4;
     func_stack.insert_ra();
     int offset = func_stack.get_offset_ra();
-    if (offset < 2048) {
+    if (offset < 2048 && offset >= -2048) {
       code_stream << "  sw ra, " + std::to_string(offset) + "(sp)" << std::endl;
     } else {
       code_stream << "  li t0, " + std::to_string(offset) << std::endl;
@@ -449,13 +588,13 @@ void GenASMVisitor::visit(const koopa_raw_basic_block_t& raw_bb) {
 void GenASMVisitor::visit(const koopa_raw_store_t& store) {
   /**1. load operand to register using prepareOperand
    * 2. store register to stack_ofset(sp) that binded to dest
-   * 
+   *
    * for examples:
    * %ptr0 = getelemptr @arr_2, 0
    * store 1, %ptr0
    * @arr_2 at 24(sp)
    * %ptr0 at 20(sp) with content 24(sp)
-   * 
+   *
    * li t0, 1
    * lw t1, 20(sp)
    * sw t0, 0(t1)
@@ -471,44 +610,44 @@ void GenASMVisitor::visit(const koopa_raw_store_t& store) {
   auto& tmp_reg_0 = src_visitor.load_reg_name;
 
   if (func_stack.find(store.dest)) {
+    int offset = func_stack.get_offset(store.dest);
     if(store.dest->kind.tag == KOOPA_RVT_GET_ELEM_PTR || store.dest->kind.tag == KOOPA_RVT_GET_PTR) {
-      // auto dest_visitor = PrepareOperandVisitor(&func_stack, &reg_pool);
-      // dest_visitor.visit(store.dest);
-      // auto& tmp_reg_1 = dest_visitor.load_reg_name;
       auto tmp_reg_1 = reg_pool.getReg();
-      int offset = func_stack.get_offset(store.dest);
-      if (offset < 2048) {
-        code_stream << "  sw " + tmp_reg_1 + ", " + std::to_string(offset) + "(sp)"
+      if (offset < 2048 && offset >= -2048) {
+        code_stream << "  lw " + tmp_reg_1 + ", " +
+                           std::to_string(offset) + "(sp)"
+                    << std::endl;
+        code_stream << "  sw " + tmp_reg_0 + ", 0(" + tmp_reg_1 + ")"
                     << std::endl;
       } else {
         auto tmp_reg = reg_pool.getReg();
         code_stream << "  li " + tmp_reg + ", " + std::to_string(offset)
                     << std::endl;
         code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
-        code_stream << "  sw " + tmp_reg_1 + ", 0(" + tmp_reg + ")"
+        code_stream << "  lw " + tmp_reg_1 + ", 0(" + tmp_reg + ")" << std::endl;
+        code_stream << "  sw " + tmp_reg_0 + ", 0(" + tmp_reg_1 + ")"
                     << std::endl;
         reg_pool.freeReg(tmp_reg);
       }
-
-      code_stream << "  sw " + tmp_reg_0 + ", 0(" + tmp_reg_1 + ")"
-                  << std::endl;
       reg_pool.freeReg(tmp_reg_1);
-    } else {
-      int offset = func_stack.get_offset(store.dest);
-      if (offset < 2048) {
-        code_stream << "  sw " + tmp_reg_0 + ", " + std::to_string(offset) + "(sp)"
+    } else if(store.dest->kind.tag == KOOPA_RVT_ALLOC){
+      if (offset < 2048 && offset >= -2048) {
+        code_stream << "  sw " + tmp_reg_0 + ", " + std::to_string(offset) +
+                           "(sp)"
                     << std::endl;
       } else {
         auto tmp_reg = reg_pool.getReg();
         code_stream << "  li " + tmp_reg + ", " + std::to_string(offset)
                     << std::endl;
         code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
-        code_stream << "  sw " + tmp_reg_0 + ", 0(" + tmp_reg + ")"
-                    << std::endl;
+        code_stream << "  sw " + tmp_reg_0 + ", 0(" + tmp_reg + ")" << std::endl;
         reg_pool.freeReg(tmp_reg);
       }
+    } else {
+      assert(0);
     }
-  } else if(store.dest->kind.tag == KOOPA_RVT_GLOBAL_ALLOC) {
+    
+  } else if (store.dest->kind.tag == KOOPA_RVT_GLOBAL_ALLOC) {
     /**
      * for examples:
      * global @a_1 = alloc i32, 10
@@ -521,15 +660,14 @@ void GenASMVisitor::visit(const koopa_raw_store_t& store) {
     code_stream << "  la " + tmp_reg_1 + ", " +
                        std::string(store.dest->name).substr(1)
                 << std::endl;
-    code_stream << "  sw " + tmp_reg_0 + ", 0(" + tmp_reg_1 + ")"
-                << std::endl;
+    code_stream << "  sw " + tmp_reg_0 + ", 0(" + tmp_reg_1 + ")" << std::endl;
     reg_pool.freeReg(tmp_reg_1);
 
   } else {
     assert(0);
   }
 
-  reg_pool.freeReg(tmp_reg_0);
+  // reg_pool.freeReg(tmp_reg_0);
 }
 
 void GenASMVisitor::visit(const koopa_raw_return_t& ret) {
@@ -539,7 +677,8 @@ void GenASMVisitor::visit(const koopa_raw_return_t& ret) {
     prepareOperandVisitor.visit(ret.value);
     code_stream << prepareOperandVisitor.asm_code;
     // std::cout<<"ret value kind tag: "<<ret.value->kind.tag<<std::endl;
-    // if(ret.value->kind.tag == KOOPA_RVT_GET_ELEM_PTR || ret.value->kind.tag == KOOPA_RVT_GET_PTR) {
+    // if(ret.value->kind.tag == KOOPA_RVT_GET_ELEM_PTR || ret.value->kind.tag
+    // == KOOPA_RVT_GET_PTR) {
     //   code_stream << "  lw a0, 0(a0)" << std::endl;
     // }
   }
@@ -548,7 +687,7 @@ void GenASMVisitor::visit(const koopa_raw_return_t& ret) {
   if (func_stack.has_ra) {
     // int offset = stack_offset - 4;
     int offset = func_stack.get_offset_ra();
-    if (offset < 2048) {
+    if (offset < 2048 && offset >= -2048) {
       code_stream << "  lw ra, " + std::to_string(offset) + "(sp)" << std::endl;
     } else {
       code_stream << "  li t0, " + std::to_string(offset) << std::endl;
@@ -567,24 +706,24 @@ void GenASMVisitor::visit(const koopa_raw_return_t& ret) {
   code_stream << "  ret" << std::endl;
 }
 
-
-void GenASMVisitor::store_func_stack(const koopa_raw_value_t& value, std::string reg_name) {
+void GenASMVisitor::store_func_stack(const koopa_raw_value_t& value,
+                                     std::string reg_name) {
   // assert(func_stack.find(value));
-  if(func_stack.find(value) == false){
+  if (func_stack.find(value) == false) {
     func_stack.insert(value);
   }
   int offset = func_stack.get_offset(value);
-  if (offset < 2048) {
+  if (offset < 2048 && offset >= -2048) {
     code_stream << "  sw " + reg_name + ", " + std::to_string(offset) + "(sp)"
                 << std::endl;
   } else {
     auto tmp_reg = reg_pool.getReg();
-    code_stream << "  li " + tmp_reg + ", " + std::to_string(offset) << std::endl;
+    code_stream << "  li " + tmp_reg + ", " + std::to_string(offset)
+                << std::endl;
     code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
     code_stream << "  sw " + reg_name + ", 0(" + tmp_reg + ")" << std::endl;
     reg_pool.freeReg(tmp_reg);
   }
 }
-
 
 };  // namespace KOOPA

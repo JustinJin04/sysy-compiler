@@ -70,6 +70,28 @@ class PrepareOperandVisitor: public Visitor {
   }
 
   void visit(const koopa_raw_value_t& value) override {
+    
+    if(stack->find(value)) {
+      
+      // assert(value->ty->tag == KOOPA_RTT_INT32);
+      // if(value->ty->tag != KOOPA_RTT_INT32){
+      //   std::cout<<"value kind tag: "<<value->kind.tag<<std::endl;
+      //   assert(0);
+      // }
+
+      int stack_offset = stack->get_offset(value);
+      if(stack_offset < 2048 && stack_offset >= -2048){
+        asm_code.append("  lw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
+      } else {
+        auto tmp_reg = reg_pool->getReg();
+        asm_code.append("  li " + tmp_reg + ", " + std::to_string(stack_offset) + "\n");
+        asm_code.append("  add " + tmp_reg + ", sp, " + tmp_reg + "\n");
+        asm_code.append("  lw " + load_reg_name + ", 0(" + tmp_reg + ")\n");
+        reg_pool->freeReg(tmp_reg);
+      }
+      return;
+    }
+
     switch(value->kind.tag){
       case KOOPA_RVT_INTEGER: {
         auto integer = value->kind.data.integer.value;
@@ -83,7 +105,7 @@ class PrepareOperandVisitor: public Visitor {
           return;
         } else {
           int stack_offset = stack->size + (index - 8) * 4;
-          if(stack_offset < 2048){
+          if(stack_offset < 2048 && stack_offset >= -2048){
             asm_code.append("  lw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
           } else {
             auto tmp_reg = reg_pool->getReg();
@@ -99,53 +121,13 @@ class PrepareOperandVisitor: public Visitor {
         break;
       }
       case KOOPA_RVT_GLOBAL_ALLOC: {
-        /**
-         * la t0, x
-         * lw t0, 0(t0)
-         */
         asm_code.append("  la " + load_reg_name + ", " + std::string(value->name).substr(1) + "\n");
         asm_code.append("  lw " + load_reg_name + ", 0(" + load_reg_name + ")\n");
         break;
       }
-      case KOOPA_RVT_GET_PTR: {
-        int stack_offset = stack->get_offset(value);
-        if(stack_offset < 2048){
-          asm_code.append("  lw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
-        } else {
-          auto tmp_reg = reg_pool->getReg();
-          asm_code.append("  li " + tmp_reg + ", " + std::to_string(stack_offset) + "\n");
-          asm_code.append("  add " + tmp_reg + ", sp, " + tmp_reg + "\n");
-          asm_code.append("  lw " + load_reg_name + ", 0(" + tmp_reg + ")\n");
-          reg_pool->freeReg(tmp_reg);
-        }
-        asm_code.append("  lw " + load_reg_name + ", 0(" + load_reg_name + ")\n");
-        break;
-      }
-      case KOOPA_RVT_GET_ELEM_PTR: {
-        int stack_offset = stack->get_offset(value);
-        if(stack_offset < 2048){
-          asm_code.append("  lw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
-        } else {
-          auto tmp_reg = reg_pool->getReg();
-          asm_code.append("  li " + tmp_reg + ", " + std::to_string(stack_offset) + "\n");
-          asm_code.append("  add " + tmp_reg + ", sp, " + tmp_reg + "\n");
-          asm_code.append("  lw " + load_reg_name + ", 0(" + tmp_reg + ")\n");
-          reg_pool->freeReg(tmp_reg);
-        }
-        asm_code.append("  lw " + load_reg_name + ", 0(" + load_reg_name + ")\n");
-        break;
-      }
       default:{
-        int stack_offset = stack->get_offset(value);
-        if(stack_offset < 2048){
-          asm_code.append("  lw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
-        } else {
-          auto tmp_reg = reg_pool->getReg();
-          asm_code.append("  li " + tmp_reg + ", " + std::to_string(stack_offset) + "\n");
-          asm_code.append("  add " + tmp_reg + ", sp, " + tmp_reg + "\n");
-          asm_code.append("  lw " + load_reg_name + ", 0(" + tmp_reg + ")\n");
-          reg_pool->freeReg(tmp_reg);
-        }
+        std::cout<<"value kind tag: "<<value->kind.tag<<std::endl;
+        assert(0);
       }
     }
   }
