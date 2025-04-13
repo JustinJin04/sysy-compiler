@@ -75,6 +75,9 @@ class FuncStack{
     }
 
     offset -= value_size;
+    if(offset < 0){
+      exit(123);
+    }
     value_to_offset[value] = offset;
   }
 
