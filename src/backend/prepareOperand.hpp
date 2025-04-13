@@ -107,6 +107,34 @@ class PrepareOperandVisitor: public Visitor {
         asm_code.append("  lw " + load_reg_name + ", 0(" + load_reg_name + ")\n");
         break;
       }
+      case KOOPA_RVT_GET_PTR: {
+        int stack_offset = stack->get_offset(value);
+        if(stack_offset < 2048){
+          asm_code.append("  lw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
+        } else {
+          auto tmp_reg = reg_pool->getReg();
+          asm_code.append("  li " + tmp_reg + ", " + std::to_string(stack_offset) + "\n");
+          asm_code.append("  add " + tmp_reg + ", sp, " + tmp_reg + "\n");
+          asm_code.append("  lw " + load_reg_name + ", 0(" + tmp_reg + ")\n");
+          reg_pool->freeReg(tmp_reg);
+        }
+        asm_code.append("  lw " + load_reg_name + ", 0(" + load_reg_name + ")\n");
+        break;
+      }
+      case KOOPA_RVT_GET_ELEM_PTR: {
+        int stack_offset = stack->get_offset(value);
+        if(stack_offset < 2048){
+          asm_code.append("  lw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
+        } else {
+          auto tmp_reg = reg_pool->getReg();
+          asm_code.append("  li " + tmp_reg + ", " + std::to_string(stack_offset) + "\n");
+          asm_code.append("  add " + tmp_reg + ", sp, " + tmp_reg + "\n");
+          asm_code.append("  lw " + load_reg_name + ", 0(" + tmp_reg + ")\n");
+          reg_pool->freeReg(tmp_reg);
+        }
+        asm_code.append("  lw " + load_reg_name + ", 0(" + load_reg_name + ")\n");
+        break;
+      }
       default:{
         int stack_offset = stack->get_offset(value);
         if(stack_offset < 2048){
@@ -114,11 +142,8 @@ class PrepareOperandVisitor: public Visitor {
         } else {
           auto tmp_reg = reg_pool->getReg();
           asm_code.append("  li " + tmp_reg + ", " + std::to_string(stack_offset) + "\n");
-          // asm_code.append("  li t0, " + std::to_string(stack_offset) + "\n");
           asm_code.append("  add " + tmp_reg + ", sp, " + tmp_reg + "\n");
-          // asm_code.append("  add t0, sp, t0\n");
           asm_code.append("  lw " + load_reg_name + ", 0(" + tmp_reg + ")\n");
-          // asm_code.append("  lw " + load_reg_name + ", 0(t0)\n");
           reg_pool->freeReg(tmp_reg);
         }
       }

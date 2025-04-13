@@ -33,6 +33,9 @@ class GenASMVisitor : public Visitor {
     code_stream.close();
   }
 
+
+  void store_func_stack(const koopa_raw_value_t& value, std::string reg_name);
+
   void visit(const koopa_raw_program_t& program) override;
   void visit(const koopa_raw_value_t& value) override;
   void visit(const koopa_raw_function_t& func) override;
@@ -41,6 +44,7 @@ class GenASMVisitor : public Visitor {
   void visit(const koopa_raw_return_t& value) override;
 
   void visit(const koopa_raw_store_t& value) override;
+
 };
 
 
