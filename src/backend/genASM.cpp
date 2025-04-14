@@ -393,22 +393,25 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       prepareOperand.visit(kind.data.branch.cond);
       code_stream << prepareOperand.asm_code;
       auto& load_reg_name = prepareOperand.load_reg_name;
-      code_stream << "  bnez " + load_reg_name + ", " + std::string(kind.data.branch.true_bb->name).substr(1) << std::endl;
-      code_stream << "  j " + std::string(kind.data.branch.false_bb->name).substr(1) << std::endl;
-      // auto skip_label = std::string(kind.data.branch.true_bb->name).substr(1) + "_skip";
-      // // since we have traverse all basic block when visiting raw function
-      // // we don't need to deal with the true_bb and false_bb here
-      // code_stream << "  bnez " + load_reg_name + ", " +
-      //                   //  std::string(kind.data.branch.true_bb->name).substr(1)
-      //                   skip_label
-      //             << std::endl;
-      // code_stream << "  j " +
-      //                    std::string(kind.data.branch.false_bb->name).substr(1)
-      //             << std::endl;
-      // code_stream << skip_label + ":" << std::endl;
-      // code_stream << "  j " +
-      //                    std::string(kind.data.branch.true_bb->name).substr(1)
-      //             << std::endl;
+
+      // code_stream << "  bnez " + load_reg_name + ", " + std::string(kind.data.branch.true_bb->name).substr(1) << std::endl;
+      // code_stream << "  j " + std::string(kind.data.branch.false_bb->name).substr(1) << std::endl;
+      
+      // TODO: this way has relatively low performence.
+      auto skip_label = std::string(kind.data.branch.true_bb->name).substr(1) + "_skip";
+      // since we have traverse all basic block when visiting raw function
+      // we don't need to deal with the true_bb and false_bb here
+      code_stream << "  bnez " + load_reg_name + ", " +
+                        //  std::string(kind.data.branch.true_bb->name).substr(1)
+                        skip_label
+                  << std::endl;
+      code_stream << "  j " +
+                         std::string(kind.data.branch.false_bb->name).substr(1)
+                  << std::endl;
+      code_stream << skip_label + ":" << std::endl;
+      code_stream << "  j " +
+                         std::string(kind.data.branch.true_bb->name).substr(1)
+                  << std::endl;
       break;
     }
     case KOOPA_RVT_JUMP: {
