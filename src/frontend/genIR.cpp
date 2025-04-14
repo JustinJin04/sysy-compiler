@@ -999,8 +999,16 @@ void GenIRVisitor::visit(VarDef& node) {
       // generate like {10, 20}. should evaluate each array value
       int idx = 0;
       std::string init_code;
-      gen_var_arr_init_val_global_recur(
-          link_list_visitor.result, array_evaluator.result, 0, idx, init_code);
+      if(node.var_init_val->exp == nullptr && node.var_init_val->array_init_val_hierarchy.size() == 0){
+        // zeroinit
+        // TODO: note that this kind of way to judge whether to use zero init 
+        // is pretty hacky. Try to find a better way to do this
+        init_code = "zeroinit";
+      } else {
+        // {0,1,2...}
+        gen_var_arr_init_val_global_recur(
+            link_list_visitor.result, array_evaluator.result, 0, idx, init_code);
+      }
       ir_code->append(init_code);
       ir_code->append("\n");
     } else {

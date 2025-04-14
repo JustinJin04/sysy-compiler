@@ -46,8 +46,9 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       code_stream << std::string(raw_value->name).substr(1) + ":" << std::endl;
       if (kind.data.global_alloc.init->kind.tag == KOOPA_RVT_ZERO_INIT) {
         assert(raw_value->ty->tag == KOOPA_RTT_POINTER);
-        assert(raw_value->ty->data.pointer.base->tag == KOOPA_RTT_INT32);
-        code_stream << "  .zero 4" << std::endl;
+        // assert(raw_value->ty->data.pointer.base->tag == KOOPA_RTT_INT32);
+        int zero_size = get_type_width(raw_value->ty->data.pointer.base);
+        code_stream << "  .zero " + std::to_string(zero_size) << std::endl;
       } else if (kind.data.global_alloc.init->kind.tag == KOOPA_RVT_INTEGER) {
         code_stream << "  .word " +
                            std::to_string(kind.data.global_alloc.init->kind.data
