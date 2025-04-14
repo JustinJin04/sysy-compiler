@@ -43,6 +43,7 @@ void StackCalculatorVisitor::visit(const koopa_raw_value_t& inst) {
       if (inst->kind.data.call.callee->ty->data.function.ret) {
         local_var_size += 4;
       }
+      break;
     }
     case KOOPA_RVT_GET_PTR: {
       local_var_size += 4;

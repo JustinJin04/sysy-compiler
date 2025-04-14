@@ -292,13 +292,16 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       auto lhs = kind.data.binary.lhs;
       auto rhs = kind.data.binary.rhs;
 
-      auto prepareOperandVisitor =
+      auto op_1_visitor =
           PrepareOperandVisitor(&func_stack, &reg_pool);
-      prepareOperandVisitor.set_load_reg_name("t0");
-      prepareOperandVisitor.visit(lhs);
-      prepareOperandVisitor.set_load_reg_name("t1");
-      prepareOperandVisitor.visit(rhs);
-      code_stream << prepareOperandVisitor.asm_code;
+          op_1_visitor.set_load_reg_name("t0");
+          op_1_visitor.visit(lhs);
+      auto op_2_visitor = 
+          PrepareOperandVisitor(&func_stack, &reg_pool);
+          op_2_visitor.set_load_reg_name("t1");
+          op_2_visitor.visit(rhs);
+      code_stream << op_1_visitor.asm_code << std::endl;
+      code_stream << op_2_visitor.asm_code << std::endl;
 
       switch (op) {
         case KOOPA_RBO_NOT_EQ: {
@@ -380,8 +383,8 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
 
       store_func_stack(raw_value, "t0");
 
-      reg_pool.freeReg("t0");
-      reg_pool.freeReg("t1");
+      // reg_pool.freeReg("t0");
+      // reg_pool.freeReg("t1");
       break;
     }
     case KOOPA_RVT_BRANCH: {
