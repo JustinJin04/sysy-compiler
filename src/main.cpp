@@ -58,6 +58,8 @@ int main(int argc, const char *argv[]) {
     }
   } else if (mode == "-riscv") {
     IR_to_ASM(ir, output);
+  } else if (mode == "-perf") {
+    IR_to_ASM(ir, output);
   }
 
   return 0;
