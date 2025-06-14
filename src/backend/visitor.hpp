@@ -52,34 +52,6 @@ class Visitor {
   // virtual void visit(const koopa_raw_load_t& value) {
   //   throw std::runtime_error("LoadOp not implemented");
   // }
-
 };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}; // namespace KOOPA
+};  // namespace KOOPA

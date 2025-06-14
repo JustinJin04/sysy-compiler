@@ -120,11 +120,8 @@ class GenIRVisitor : public Visitor {
       const std::vector<std::variant<Exp*, int>>& data, int layer, int& idx,
       std::string& ret);
 
-
-  void gen_array_indices(std::vector<std::string>& indices, std::string& arr_sym_name);
-
-
-
+  void gen_array_indices(std::vector<std::string>& indices,
+                         std::string& arr_sym_name);
 };
 
 }  // namespace AST

@@ -7,7 +7,7 @@ class CompUnit;
 class CompUnitItem;  // property of CompUnit
 class FuncDef;       // inherit from CompUnitItem
 // class FuncType;      // property of FuncDef
-class BlockItem;     // property of Block
+class BlockItem;  // property of Block
 class FuncFParam;
 class FuncCallExp;
 
@@ -16,22 +16,21 @@ class ConstDecl;  // inherit from Decl
 class VarDecl;    // inherit from Decl
 // class BType;      // property of Decl, FuncFParam
 class Type;
-class ConstDef;   // property of ConstDecl
-class VarDef;     // property of VarDecl
+class ConstDef;  // property of ConstDecl
+class VarDef;    // property of VarDecl
 
 class ArrayDims;
 class ArrayInitVal;
 class FuncFParamArr;
 
-
-class Stmt;        // inherit from BlockItem
-class RetStmt;     // inherit from Stmt
-class AssignStmt;  // inherit from Stmt
-class ExpStmt;     // inherit from Stmt
-class BlockStmt;   // inherit from Stmt
-class IfStmt;      // inherit from Stmt
-class WhileStmt;   // inherit from Stmt
-class BreakStmt;   // inherit from Stmt
+class Stmt;          // inherit from BlockItem
+class RetStmt;       // inherit from Stmt
+class AssignStmt;    // inherit from Stmt
+class ExpStmt;       // inherit from Stmt
+class BlockStmt;     // inherit from Stmt
+class IfStmt;        // inherit from Stmt
+class WhileStmt;     // inherit from Stmt
+class BreakStmt;     // inherit from Stmt
 class ContinueStmt;  // inherit from Stmt
 
 class Exp;            // Base class for all expressions
@@ -54,7 +53,6 @@ class EQExp;          // inherit from BinaryExp
 class NEExp;          // inherit from BinaryExp
 class LAndExp;        // inherit from BinaryExp
 class LOrExp;         // inherit from BinaryExp
-
 
 class Visitor {
  public:
@@ -107,8 +105,6 @@ class Visitor {
     throw std::runtime_error("FuncFParamArr is not implemented");
   }
 
-
-
   virtual void visit(RetStmt& node) {
     throw std::runtime_error("RetStmt is not implemented");
   }
@@ -134,8 +130,8 @@ class Visitor {
     throw std::runtime_error("ContinueStmt is not implemented");
   }
 
-
-  // virtual void visit(Exp& node) = 0;      // TODO: should exp be pure virtual?
+  // virtual void visit(Exp& node) = 0;      // TODO: should exp be pure
+  // virtual?
 
   virtual void visit(NumberExp& node) {
     throw std::runtime_error("NumberExp is not implemented");
@@ -188,8 +184,6 @@ class Visitor {
   virtual void visit(LOrExp& node) {
     throw std::runtime_error("LOrExp is not implemented");
   }
-
-
 };
 
 }  // namespace AST

@@ -9,18 +9,16 @@
 #include <vector>
 #include "stack.hpp"
 
-
 namespace KOOPA {
 
-class PrepareOperandVisitor: public Visitor {
+class PrepareOperandVisitor : public Visitor {
  public:
-  std::string asm_code; 
+  std::string asm_code;
   std::string load_reg_name;
   // std::unordered_map<koopa_raw_value_t, int>* value_to_offset;
   // int stack_size;
   FuncStack* stack;
 
-  
   /**
    * currently when prepareOperandVisitor return visiting
    * it should only keep load_reg_name regiser
@@ -28,12 +26,11 @@ class PrepareOperandVisitor: public Visitor {
    */
   RegPool* reg_pool;
 
-  ~PrepareOperandVisitor(){
-    if(load_reg_name != "" && load_reg_name[0] == 't'){
+  ~PrepareOperandVisitor() {
+    if (load_reg_name != "" && load_reg_name[0] == 't') {
       reg_pool->freeReg(load_reg_name);
     }
   }
-
 
   PrepareOperandVisitor(FuncStack* _stack, RegPool* _reg_pool) {
     stack = _stack;
@@ -46,15 +43,15 @@ class PrepareOperandVisitor: public Visitor {
    * 2. set load_reg_name to new register
    * 3. get new register if it is temporary register
    */
-  void set_load_reg_name(const std::string& name){
-    if(name == load_reg_name){
+  void set_load_reg_name(const std::string& name) {
+    if (name == load_reg_name) {
       return;
     }
-    if(load_reg_name != "" && load_reg_name[0] == 't'){
+    if (load_reg_name != "" && load_reg_name[0] == 't') {
       reg_pool->freeReg(load_reg_name);
     }
     load_reg_name = name;
-    if(name[0] == 't'){
+    if (name[0] == 't') {
       reg_pool->getReg(name);
     }
   }
@@ -62,17 +59,15 @@ class PrepareOperandVisitor: public Visitor {
    * 1. release current hold register (maybe not temp register, like a0-a7)
    * 2. acquire new temp register
    */
-  void reset_load_reg_name(){
-    if(load_reg_name != "" && load_reg_name[0] == 't'){
+  void reset_load_reg_name() {
+    if (load_reg_name != "" && load_reg_name[0] == 't') {
       reg_pool->freeReg(load_reg_name);
     }
     load_reg_name = reg_pool->getReg();
   }
 
   void visit(const koopa_raw_value_t& value) override {
-    
-    if(stack->find(value)) {
-      
+    if (stack->find(value)) {
       // assert(value->ty->tag == KOOPA_RTT_INT32);
       // if(value->ty->tag != KOOPA_RTT_INT32){
       //   std::cout<<"value kind tag: "<<value->kind.tag<<std::endl;
@@ -80,11 +75,13 @@ class PrepareOperandVisitor: public Visitor {
       // }
 
       int stack_offset = stack->get_offset(value);
-      if(stack_offset < 2048 && stack_offset >= -2048){
-        asm_code.append("  lw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
+      if (stack_offset < 2048 && stack_offset >= -2048) {
+        asm_code.append("  lw " + load_reg_name + ", " +
+                        std::to_string(stack_offset) + "(sp)\n");
       } else {
         auto tmp_reg = reg_pool->getReg();
-        asm_code.append("  li " + tmp_reg + ", " + std::to_string(stack_offset) + "\n");
+        asm_code.append("  li " + tmp_reg + ", " +
+                        std::to_string(stack_offset) + "\n");
         asm_code.append("  add " + tmp_reg + ", sp, " + tmp_reg + "\n");
         asm_code.append("  lw " + load_reg_name + ", 0(" + tmp_reg + ")\n");
         reg_pool->freeReg(tmp_reg);
@@ -92,10 +89,11 @@ class PrepareOperandVisitor: public Visitor {
       return;
     }
 
-    switch(value->kind.tag){
+    switch (value->kind.tag) {
       case KOOPA_RVT_INTEGER: {
         auto integer = value->kind.data.integer.value;
-        asm_code.append("  li " + load_reg_name + ", " + std::to_string(integer) + "\n");
+        asm_code.append("  li " + load_reg_name + ", " +
+                        std::to_string(integer) + "\n");
         break;
       }
       case KOOPA_RVT_FUNC_ARG_REF: {
@@ -105,12 +103,15 @@ class PrepareOperandVisitor: public Visitor {
           return;
         } else {
           int stack_offset = stack->size + (index - 8) * 4;
-          if(stack_offset < 2048 && stack_offset >= -2048){
-            asm_code.append("  lw " + load_reg_name + ", " + std::to_string(stack_offset) + "(sp)\n");
+          if (stack_offset < 2048 && stack_offset >= -2048) {
+            asm_code.append("  lw " + load_reg_name + ", " +
+                            std::to_string(stack_offset) + "(sp)\n");
           } else {
             auto tmp_reg = reg_pool->getReg();
-            asm_code.append("  li " + tmp_reg + ", " + std::to_string(stack_offset) + "\n");
-            // asm_code.append("  li t0, " + std::to_string(stack_offset) + "\n");
+            asm_code.append("  li " + tmp_reg + ", " +
+                            std::to_string(stack_offset) + "\n");
+            // asm_code.append("  li t0, " + std::to_string(stack_offset) +
+            // "\n");
             asm_code.append("  add " + tmp_reg + ", sp, " + tmp_reg + "\n");
             // asm_code.append("  add t0, sp, t0\n");
             asm_code.append("  lw " + load_reg_name + ", 0(" + tmp_reg + ")\n");
@@ -121,22 +122,18 @@ class PrepareOperandVisitor: public Visitor {
         break;
       }
       case KOOPA_RVT_GLOBAL_ALLOC: {
-        asm_code.append("  la " + load_reg_name + ", " + std::string(value->name).substr(1) + "\n");
-        asm_code.append("  lw " + load_reg_name + ", 0(" + load_reg_name + ")\n");
+        asm_code.append("  la " + load_reg_name + ", " +
+                        std::string(value->name).substr(1) + "\n");
+        asm_code.append("  lw " + load_reg_name + ", 0(" + load_reg_name +
+                        ")\n");
         break;
       }
-      default:{
-        std::cout<<"value kind tag: "<<value->kind.tag<<std::endl;
+      default: {
+        std::cout << "value kind tag: " << value->kind.tag << std::endl;
         assert(0);
       }
     }
   }
-
-
 };
 
-
-
-
-
-};
+};  // namespace KOOPA

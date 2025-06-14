@@ -13,26 +13,22 @@ namespace KOOPA {
 
 class GenASMVisitor : public Visitor {
  public:
-
   std::ofstream code_stream;
 
   FuncStack func_stack;
 
   RegPool reg_pool;
 
-  GenASMVisitor(const std::string& output_file):
-    code_stream(output_file, std::ios::out | std::ios::trunc),
-    func_stack(16),
-    reg_pool(7) {
+  GenASMVisitor(const std::string& output_file)
+      : code_stream(output_file, std::ios::out | std::ios::trunc),
+        func_stack(16),
+        reg_pool(7) {
     if (!code_stream.is_open()) {
       throw std::runtime_error("Failed to open output file");
     }
   }
 
-  ~GenASMVisitor() {
-    code_stream.close();
-  }
-
+  ~GenASMVisitor() { code_stream.close(); }
 
   void store_func_stack(const koopa_raw_value_t& value, std::string reg_name);
 
@@ -44,33 +40,6 @@ class GenASMVisitor : public Visitor {
   void visit(const koopa_raw_return_t& value) override;
 
   void visit(const koopa_raw_store_t& value) override;
-
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 };  // namespace KOOPA

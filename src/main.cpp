@@ -15,10 +15,10 @@ using namespace std;
 // 其次, 因为这个文件不是我们自己写的, 而是被 Bison 生成出来的
 // 你的代码编辑器/IDE 很可能找不到这个文件, 然后会给你报错 (虽然编译不会出错)
 // 看起来会很烦人, 于是干脆采用这种看起来 dirty 但实际很有效的手段
-extern FILE *yyin;
-extern int yyparse(unique_ptr<AST::CompUnit> &ast);
+extern FILE* yyin;
+extern int yyparse(unique_ptr<AST::CompUnit>& ast);
 
-int main(int argc, const char *argv[]) {
+int main(int argc, const char* argv[]) {
   // 解析命令行参数. 测试脚本/评测平台要求你的编译器能接收如下参数:
   // compiler 模式 输入文件 -o 输出文件
   assert(argc == 5);
@@ -32,10 +32,10 @@ int main(int argc, const char *argv[]) {
 
   // 调用 parser 函数, parser 函数会进一步调用 lexer 解析输入文件的
   unique_ptr<AST::CompUnit> ast;
-  std::cout<<"start parsing"<<std::endl;
+  std::cout << "start parsing" << std::endl;
   auto ret = yyparse(ast);
-  std::cout<<"end parsing"<<std::endl;
-  if(ret) {
+  std::cout << "end parsing" << std::endl;
+  if (ret) {
     exit(11);
   }
   // assert(!ret);
@@ -43,16 +43,16 @@ int main(int argc, const char *argv[]) {
   // 输出解析得到的 AST, 其实就是个字符串
   auto ir_visitor = AST::GenIRVisitor();
   ast->accept(ir_visitor);
-  std::cout<<"end genIR"<<std::endl;
+  std::cout << "end genIR" << std::endl;
   auto& ir = ir_visitor.ir_code;
   // std::cout<<*ir<<std::endl;
   // check ir
   verify_koopa_blocks(*ir);
-  std::cout<<"check done"<<std::endl;
+  std::cout << "check done" << std::endl;
   FILE* output_file;
-  if(mode == "-koopa"){
+  if (mode == "-koopa") {
     output_file = fopen(output.c_str(), "w");
-    if(output_file){
+    if (output_file) {
       fwrite(ir->c_str(), sizeof(char), ir->length(), output_file);
       fclose(output_file);
     }

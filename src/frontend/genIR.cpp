@@ -102,7 +102,7 @@ void GenIRVisitor::visit(FuncDef& node) {
   }
 
   // start to generate ir
-  ir_code->append("fun " + func_symbol + " {\n%entry_"+node.ident+":\n");
+  ir_code->append("fun " + func_symbol + " {\n%entry_" + node.ident + ":\n");
 
   // allocate stack for fparam
   auto fparam_ptr = node.func_fparam.get();
@@ -629,7 +629,8 @@ void GenIRVisitor::visit(AssignStmt& node) {
     }
     var_name = ptr_stack.top();
   } else if (kind == SymbolTables::SymbolKind::PTR) {
-    // similar to VAR_ARR, we just don't need to load ptr at last compared to lval
+    // similar to VAR_ARR, we just don't need to load ptr at last compared to
+    // lval
     auto sym_name = std::get<std::string>(
         sym_table_stack.get(node.lval->ident, SymbolTables::SymbolKind::PTR));
     auto tmp_0 = get_new_counter();
@@ -639,13 +640,15 @@ void GenIRVisitor::visit(AssignStmt& node) {
     assert(ptr != nullptr);
     ptr->exp->accept(*this);
     auto array_offset = pop_last_result();
-    ir_code->append("  " + tmp_1 + " = getptr " + tmp_0 + ", " + array_offset + "\n");
+    ir_code->append("  " + tmp_1 + " = getptr " + tmp_0 + ", " + array_offset +
+                    "\n");
     ptr = ptr->next_dim.get();
-    while(ptr) {
+    while (ptr) {
       auto tmp_2 = get_new_counter();
       ptr->exp->accept(*this);
       auto array_offset = pop_last_result();
-      ir_code->append("  " + tmp_2 + " = getelemptr " + tmp_1 + ", " + array_offset + "\n");
+      ir_code->append("  " + tmp_2 + " = getelemptr " + tmp_1 + ", " +
+                      array_offset + "\n");
       tmp_1 = tmp_2;
       ptr = ptr->next_dim.get();
     }
@@ -843,11 +846,11 @@ void GenIRVisitor::visit(LValExp& node) {
        * @a // *[[i32, 3], 2]
        * %0 = getelemptr @a, 1 // *[i32, 3]
        * %1 = getelemptr %0, 0 // *i32
-       * 
+       *
        * // f(a[1][2])
        * %0 = getelemptr @a, 1 // *[i32, 3]
        * %1 = getelemptr %0, 2 // *i32
-       * %2 = load %1 
+       * %2 = load %1
        */
       std::cout << "gen lval var arr: " << node.ident << "\n";
       auto arr_sym_name = std::get<std::string>(
@@ -876,13 +879,15 @@ void GenIRVisitor::visit(LValExp& node) {
        * 1. when referred to a value in array, load it
        * 2. when referred to an array, use getelemptr to convert to ptr
        */
-      if(refer_dim < array_dim) {
+      if (refer_dim < array_dim) {
         auto result_name = get_new_counter();
-        ir_code->append("  " + result_name + " = getelemptr " + ptr_stack.top() + ", 0\n");
+        ir_code->append("  " + result_name + " = getelemptr " +
+                        ptr_stack.top() + ", 0\n");
         push_result(result_name);
       } else {
         auto result_name = get_new_counter();
-        ir_code->append("  " + result_name + " = load " + ptr_stack.top() + "\n");
+        ir_code->append("  " + result_name + " = load " + ptr_stack.top() +
+                        "\n");
         push_result(result_name);
       }
       break;
@@ -893,57 +898,60 @@ void GenIRVisitor::visit(LValExp& node) {
        * %0 = load %arr // *i32
        * %1 = getptr %0, 1 // *i32
        * %2 = load %1 // i32
-       * 
+       *
        * f(int arr[][3]) return arr[1][2]
        * %0 = load %arr // *[i32, 3]
        * %1 = getptr %0, 1 // *[i32, 3]
        * %2 = getelemptr %1, 2 // *i32
        * %3 = load %2 // i32
-       * 
+       *
        * f(int arr[][3][4]) return arr[1][2][3]
        * %0 = load %arr // *[[i32, 4], 3]
        * %1 = getptr %0, 1 // *[[i32, 4], 3]
        * %2 = getelemptr %1, 2 // *[i32, 4]
        * %3 = getelemptr %2, 3 // *i32
        * %4 = load %3 // i32
-       * 
+       *
        * f(int arr[][10]) return arr[1]
        * %0 = load %arr // *[i32, 10]
        * %1 = getptr %0, 1 // *[i32, 10]
        * %2 = getelemptr %1, 0 // *i32
-       * 
+       *
        * f(int arr[]) g(arr);
        * %0 = load %arr // *i32
        */
-      std::cout<<"gen lval ptr: "<<node.ident<<"\n";
+      std::cout << "gen lval ptr: " << node.ident << "\n";
       auto sym_name = sym_table_stack.get_ptr_info(node.ident).sym_name;
       int array_dim = sym_table_stack.get_ptr_info(node.ident).dims;
       auto tmp_0 = get_new_counter();
       ir_code->append("  " + tmp_0 + " = load " + sym_name + "\n");
       auto ptr = node.array_dims.get();
       // assert(ptr != nullptr);
-      if(ptr == nullptr){
+      if (ptr == nullptr) {
         push_result(tmp_0);
         return;
       }
       auto tmp_1 = get_new_counter();
       ptr->exp->accept(*this);
       auto array_offset = pop_last_result();
-      ir_code->append("  " + tmp_1 + " = getptr " + tmp_0 + ", " + array_offset + "\n");
+      ir_code->append("  " + tmp_1 + " = getptr " + tmp_0 + ", " +
+                      array_offset + "\n");
       ptr = ptr->next_dim.get();
       int refer_dim = 1;
-      while(ptr) {
+      while (ptr) {
         refer_dim += 1;
         auto tmp_2 = get_new_counter();
         ptr->exp->accept(*this);
         auto array_offset = pop_last_result();
-        ir_code->append("  " + tmp_2 + " = getelemptr " + tmp_1 + ", " + array_offset + "\n");
+        ir_code->append("  " + tmp_2 + " = getelemptr " + tmp_1 + ", " +
+                        array_offset + "\n");
         tmp_1 = tmp_2;
         ptr = ptr->next_dim.get();
       }
-      if(refer_dim < array_dim) {
+      if (refer_dim < array_dim) {
         auto result_name = get_new_counter();
-        ir_code->append("  " + result_name + " = getelemptr " + tmp_1 + ", 0\n");
+        ir_code->append("  " + result_name + " = getelemptr " + tmp_1 +
+                        ", 0\n");
         push_result(result_name);
       } else {
         auto result_name = get_new_counter();
@@ -999,15 +1007,17 @@ void GenIRVisitor::visit(VarDef& node) {
       // generate like {10, 20}. should evaluate each array value
       int idx = 0;
       std::string init_code;
-      if(node.var_init_val->exp == nullptr && node.var_init_val->array_init_val_hierarchy.size() == 0){
+      if (node.var_init_val->exp == nullptr &&
+          node.var_init_val->array_init_val_hierarchy.size() == 0) {
         // zeroinit
-        // TODO: note that this kind of way to judge whether to use zero init 
+        // TODO: note that this kind of way to judge whether to use zero init
         // is pretty hacky. Try to find a better way to do this
         init_code = "zeroinit";
       } else {
         // {0,1,2...}
-        gen_var_arr_init_val_global_recur(
-            link_list_visitor.result, array_evaluator.result, 0, idx, init_code);
+        gen_var_arr_init_val_global_recur(link_list_visitor.result,
+                                          array_evaluator.result, 0, idx,
+                                          init_code);
       }
       ir_code->append(init_code);
       ir_code->append("\n");

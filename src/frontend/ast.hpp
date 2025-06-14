@@ -19,14 +19,14 @@ class FuncDef;       // inherit from CompUnitItem
 class Type;
 class FuncFParam;
 class FuncCallExp;
-class BlockItem;     // property of Block
+class BlockItem;  // property of Block
 
 class Decl;       // inherit from BlockItem (local declaration)
 class ConstDecl;  // inherit from Decl
 class VarDecl;    // inherit from Decl
 // class BType;      // property of Decl, FuncFParam
-class ConstDef;   // property of ConstDecl
-class VarDef;     // property of VarDecl
+class ConstDef;  // property of ConstDecl
+class VarDef;    // property of VarDecl
 
 // class GlobalDecl; // inherit from CompUnitItem (global declaration)
 // class GlobalConstDecl;  // inherit from GlobalDecl
@@ -37,15 +37,14 @@ class ArrayInitVal;
 class ArrayDims;
 class FuncFParamArr;
 
-
-class Stmt;        // inherit from BlockItem
-class RetStmt;     // inherit from Stmt
-class AssignStmt;  // inherit from Stmt
-class ExpStmt;     // inherit from Stmt
-class BlockStmt;   // inherit from Stmt
-class IfStmt;      // inherit from Stmt
-class WhileStmt;   // inherit from Stmt
-class BreakStmt;   // inherit from Stmt
+class Stmt;          // inherit from BlockItem
+class RetStmt;       // inherit from Stmt
+class AssignStmt;    // inherit from Stmt
+class ExpStmt;       // inherit from Stmt
+class BlockStmt;     // inherit from Stmt
+class IfStmt;        // inherit from Stmt
+class WhileStmt;     // inherit from Stmt
+class BreakStmt;     // inherit from Stmt
 class ContinueStmt;  // inherit from Stmt
 
 class Exp;            // Base class for all expressions
@@ -121,7 +120,7 @@ class FuncDef : public CompUnitItem {
   std::string ident;  // TOKEN name, also a symbol in symbol table to be
                       // inserted when this ast node finished construction
   std::unique_ptr<FuncFParam> func_fparam;  // a list of func_fparam
-  
+
   std::unique_ptr<BlockItem> block_item;  // a list of block_item
 
   void accept(Visitor& v) override;
@@ -156,7 +155,6 @@ class ConstDecl : public Decl {
   void accept(Visitor& v) override;
 };
 
-
 class ArrayInitVal : public Base {
  public:
   /**
@@ -187,8 +185,10 @@ class ConstDef : public Base {
                       // ident is in symbol table
   // For example:
   // int main () {
-  //   const int a = 1 + 1;         // here 'a' is a TOKEN name. When we parse it, we insert <a, 2> into symble table
-  //   return a;                    // here 'a' is a LValExp. We check if 'a' is in symbol table (with value computed)
+  //   const int a = 1 + 1;         // here 'a' is a TOKEN name. When we parse
+  //   it, we insert <a, 2> into symble table return a;                    //
+  //   here 'a' is a LValExp. We check if 'a' is in symbol table (with value
+  //   computed)
   // }
   std::unique_ptr<ConstDef> next_const_def = nullptr;
   bool is_global = false;
@@ -206,8 +206,6 @@ class ConstDef : public Base {
   void accept(Visitor& v) override;
 };
 
-
-
 class VarDecl : public Decl {
  public:
   std::unique_ptr<VarDef> var_def;  // a list of var_def
@@ -221,7 +219,6 @@ class VarDef : public Base {
   // std::unique_ptr<Exp> var_init_val = nullptr;
   std::unique_ptr<VarDef> next_var_def = nullptr;
   bool is_global = false;
-
 
   std::unique_ptr<ArrayDims> array_dims = nullptr;
   std::unique_ptr<ArrayInitVal> var_init_val = nullptr;
@@ -252,12 +249,12 @@ class Type : public Base {
  * 5. IfStmt
  */
 class Stmt : public BlockItem {
-  public:
-   // void accept(Visitor& v) override {
-   //   v.visit(*this);
-   // }
-   virtual void accept(Visitor& v) = 0;
- };
+ public:
+  // void accept(Visitor& v) override {
+  //   v.visit(*this);
+  // }
+  virtual void accept(Visitor& v) = 0;
+};
 
 class RetStmt : public Stmt {
  public:
@@ -286,13 +283,13 @@ class BlockStmt : public Stmt {
 };
 
 class IfStmt : public Stmt {
-  public:
-   std::unique_ptr<Exp> cond;
-   std::unique_ptr<Stmt> then_body;
-   std::unique_ptr<Stmt> else_body;
- 
-   void accept(Visitor& v) override;
- };
+ public:
+  std::unique_ptr<Exp> cond;
+  std::unique_ptr<Stmt> then_body;
+  std::unique_ptr<Stmt> else_body;
+
+  void accept(Visitor& v) override;
+};
 
 class WhileStmt : public Stmt {
  public:
@@ -312,7 +309,6 @@ class ContinueStmt : public Stmt {
   void accept(Visitor& v) override;
 };
 
-
 /**
  * Exp abstract class defination
  * Followed four inherited classes:
@@ -323,7 +319,8 @@ class ContinueStmt : public Stmt {
  */
 class Exp : public Base {
  public:
-  std::unique_ptr<Exp> next_func_rparam = nullptr;      // used for func_call parameter list
+  std::unique_ptr<Exp> next_func_rparam =
+      nullptr;  // used for func_call parameter list
   virtual void accept(Visitor& v) = 0;
 };
 
@@ -346,7 +343,7 @@ class FuncCallExp : public Exp {
  public:
   std::string ident;
   // std::vector<std::unique_ptr<Exp>> args;
-  std::unique_ptr<Exp> rparam;                    // a list of args (Exp)
+  std::unique_ptr<Exp> rparam;  // a list of args (Exp)
   void accept(Visitor& v) override;
 };
 

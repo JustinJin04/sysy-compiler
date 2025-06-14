@@ -82,27 +82,27 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
        * lw t0, offset(sp)
        */
       auto load_reg_name = reg_pool.getReg();
-      if(func_stack.find(src)){
+      if (func_stack.find(src)) {
         int stack_offset = func_stack.get_offset(src);
-        if(stack_offset < 2048 && stack_offset >= -2048) {
+        if (stack_offset < 2048 && stack_offset >= -2048) {
           code_stream << "  lw " + load_reg_name + ", " +
-                            std::to_string(stack_offset) + "(sp)"
+                             std::to_string(stack_offset) + "(sp)"
                       << std::endl;
         } else {
           auto tmp_reg = reg_pool.getReg();
-          code_stream << "  li " + tmp_reg + ", " +
-                            std::to_string(stack_offset)
+          code_stream << "  li " + tmp_reg + ", " + std::to_string(stack_offset)
                       << std::endl;
           code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
           code_stream << "  lw " + load_reg_name + ", 0(" + tmp_reg + ")"
                       << std::endl;
           reg_pool.freeReg(tmp_reg);
         }
-        if(src->kind.tag == KOOPA_RVT_GET_ELEM_PTR || src->kind.tag == KOOPA_RVT_GET_PTR) {
+        if (src->kind.tag == KOOPA_RVT_GET_ELEM_PTR ||
+            src->kind.tag == KOOPA_RVT_GET_PTR) {
           code_stream << "  lw " + load_reg_name + ", 0(" + load_reg_name + ")"
                       << std::endl;
         }
-      } else if (src->kind.tag == KOOPA_RVT_GLOBAL_ALLOC){
+      } else if (src->kind.tag == KOOPA_RVT_GLOBAL_ALLOC) {
         code_stream << "  la " + load_reg_name + ", " +
                            std::string(src->name).substr(1)
                     << std::endl;
@@ -156,19 +156,20 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
         assert(src_value->kind.tag != KOOPA_RVT_ALLOC);
         int offset = func_stack.get_offset(src_value);
         if (offset < 2048 && offset >= -2048) {
-          code_stream << "  lw " + temp_reg_0 + ", " +
-                             std::to_string(offset) + "(sp)"
+          code_stream << "  lw " + temp_reg_0 + ", " + std::to_string(offset) +
+                             "(sp)"
                       << std::endl;
         } else {
           auto tmp_reg = reg_pool.getReg();
           code_stream << "  li " + tmp_reg + ", " + std::to_string(offset)
                       << std::endl;
           code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
-          code_stream << "  lw " + temp_reg_0 + ", 0(" + tmp_reg + ")" << std::endl;
+          code_stream << "  lw " + temp_reg_0 + ", 0(" + tmp_reg + ")"
+                      << std::endl;
           reg_pool.freeReg(tmp_reg);
         }
 
-      } else if(src_value->kind.tag == KOOPA_RVT_GLOBAL_ALLOC){
+      } else if (src_value->kind.tag == KOOPA_RVT_GLOBAL_ALLOC) {
         // assert(src_value->kind.tag == KOOPA_RVT_GLOBAL_ALLOC);
         code_stream << "  la " + temp_reg_0 + ", " +
                            std::string(src_value->name).substr(1)
@@ -233,7 +234,8 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       // start to gen code
       if (func_stack.find(src_value)) {
         int offset = func_stack.get_offset(src_value);
-        if(src_value->kind.tag == KOOPA_RVT_GET_ELEM_PTR || src_value->kind.tag == KOOPA_RVT_GET_PTR) {
+        if (src_value->kind.tag == KOOPA_RVT_GET_ELEM_PTR ||
+            src_value->kind.tag == KOOPA_RVT_GET_PTR) {
           if (offset < 2048 && offset >= -2048) {
             code_stream << "  lw " + temp_reg_0 + ", " +
                                std::to_string(offset) + "(sp)"
@@ -243,17 +245,17 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
             code_stream << "  li " + tmp_reg + ", " + std::to_string(offset)
                         << std::endl;
             code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
-            code_stream << "  lw " + temp_reg_0 + ", 0(" + tmp_reg + ")" << std::endl;
+            code_stream << "  lw " + temp_reg_0 + ", 0(" + tmp_reg + ")"
+                        << std::endl;
             reg_pool.freeReg(tmp_reg);
           }
-        } else if(src_value->kind.tag == KOOPA_RVT_ALLOC){
+        } else if (src_value->kind.tag == KOOPA_RVT_ALLOC) {
           if (offset < 2048 && offset >= -2048) {
             code_stream << "  add " + temp_reg_0 + ", sp, " +
-                                std::to_string(offset)
+                               std::to_string(offset)
                         << std::endl;
           } else {
-            code_stream << "  li " + temp_reg_0 + ", " +
-                                std::to_string(offset)
+            code_stream << "  li " + temp_reg_0 + ", " + std::to_string(offset)
                         << std::endl;
             code_stream << "  add " + temp_reg_0 + ", sp, " + temp_reg_0
                         << std::endl;
@@ -293,14 +295,12 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       auto lhs = kind.data.binary.lhs;
       auto rhs = kind.data.binary.rhs;
 
-      auto op_1_visitor =
-          PrepareOperandVisitor(&func_stack, &reg_pool);
-          op_1_visitor.set_load_reg_name("t0");
-          op_1_visitor.visit(lhs);
-      auto op_2_visitor = 
-          PrepareOperandVisitor(&func_stack, &reg_pool);
-          op_2_visitor.set_load_reg_name("t1");
-          op_2_visitor.visit(rhs);
+      auto op_1_visitor = PrepareOperandVisitor(&func_stack, &reg_pool);
+      op_1_visitor.set_load_reg_name("t0");
+      op_1_visitor.visit(lhs);
+      auto op_2_visitor = PrepareOperandVisitor(&func_stack, &reg_pool);
+      op_2_visitor.set_load_reg_name("t1");
+      op_2_visitor.visit(rhs);
       code_stream << op_1_visitor.asm_code << std::endl;
       code_stream << op_2_visitor.asm_code << std::endl;
 
@@ -394,17 +394,21 @@ void GenASMVisitor::visit(const koopa_raw_value_t& raw_value) {
       code_stream << prepareOperand.asm_code;
       auto& load_reg_name = prepareOperand.load_reg_name;
 
-      // code_stream << "  bnez " + load_reg_name + ", " + std::string(kind.data.branch.true_bb->name).substr(1) << std::endl;
-      // code_stream << "  j " + std::string(kind.data.branch.false_bb->name).substr(1) << std::endl;
-      
+      // code_stream << "  bnez " + load_reg_name + ", " +
+      // std::string(kind.data.branch.true_bb->name).substr(1) << std::endl;
+      // code_stream << "  j " +
+      // std::string(kind.data.branch.false_bb->name).substr(1) << std::endl;
+
       // TODO: this way has relatively low performence.
-      auto skip_label = std::string(kind.data.branch.true_bb->name).substr(1) + "_skip";
+      auto skip_label =
+          std::string(kind.data.branch.true_bb->name).substr(1) + "_skip";
       // since we have traverse all basic block when visiting raw function
       // we don't need to deal with the true_bb and false_bb here
-      code_stream << "  bnez " + load_reg_name + ", " +
-                        //  std::string(kind.data.branch.true_bb->name).substr(1)
-                        skip_label
-                  << std::endl;
+      code_stream
+          << "  bnez " + load_reg_name + ", " +
+                 //  std::string(kind.data.branch.true_bb->name).substr(1)
+                 skip_label
+          << std::endl;
       code_stream << "  j " +
                          std::string(kind.data.branch.false_bb->name).substr(1)
                   << std::endl;
@@ -578,11 +582,12 @@ void GenASMVisitor::visit(const koopa_raw_store_t& store) {
 
   if (func_stack.find(store.dest)) {
     int offset = func_stack.get_offset(store.dest);
-    if(store.dest->kind.tag == KOOPA_RVT_GET_ELEM_PTR || store.dest->kind.tag == KOOPA_RVT_GET_PTR) {
+    if (store.dest->kind.tag == KOOPA_RVT_GET_ELEM_PTR ||
+        store.dest->kind.tag == KOOPA_RVT_GET_PTR) {
       auto tmp_reg_1 = reg_pool.getReg();
       if (offset < 2048 && offset >= -2048) {
-        code_stream << "  lw " + tmp_reg_1 + ", " +
-                           std::to_string(offset) + "(sp)"
+        code_stream << "  lw " + tmp_reg_1 + ", " + std::to_string(offset) +
+                           "(sp)"
                     << std::endl;
         code_stream << "  sw " + tmp_reg_0 + ", 0(" + tmp_reg_1 + ")"
                     << std::endl;
@@ -591,13 +596,14 @@ void GenASMVisitor::visit(const koopa_raw_store_t& store) {
         code_stream << "  li " + tmp_reg + ", " + std::to_string(offset)
                     << std::endl;
         code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
-        code_stream << "  lw " + tmp_reg_1 + ", 0(" + tmp_reg + ")" << std::endl;
+        code_stream << "  lw " + tmp_reg_1 + ", 0(" + tmp_reg + ")"
+                    << std::endl;
         code_stream << "  sw " + tmp_reg_0 + ", 0(" + tmp_reg_1 + ")"
                     << std::endl;
         reg_pool.freeReg(tmp_reg);
       }
       reg_pool.freeReg(tmp_reg_1);
-    } else if(store.dest->kind.tag == KOOPA_RVT_ALLOC){
+    } else if (store.dest->kind.tag == KOOPA_RVT_ALLOC) {
       if (offset < 2048 && offset >= -2048) {
         code_stream << "  sw " + tmp_reg_0 + ", " + std::to_string(offset) +
                            "(sp)"
@@ -607,13 +613,14 @@ void GenASMVisitor::visit(const koopa_raw_store_t& store) {
         code_stream << "  li " + tmp_reg + ", " + std::to_string(offset)
                     << std::endl;
         code_stream << "  add " + tmp_reg + ", sp, " + tmp_reg << std::endl;
-        code_stream << "  sw " + tmp_reg_0 + ", 0(" + tmp_reg + ")" << std::endl;
+        code_stream << "  sw " + tmp_reg_0 + ", 0(" + tmp_reg + ")"
+                    << std::endl;
         reg_pool.freeReg(tmp_reg);
       }
     } else {
       assert(0);
     }
-    
+
   } else if (store.dest->kind.tag == KOOPA_RVT_GLOBAL_ALLOC) {
     /**
      * for examples:

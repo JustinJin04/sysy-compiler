@@ -5,8 +5,8 @@
 
 namespace KOOPA {
 
-inline int get_type_width(const koopa_raw_type_t& type){
-  if(type->tag == KOOPA_RTT_INT32 || type->tag == KOOPA_RTT_POINTER) {
+inline int get_type_width(const koopa_raw_type_t& type) {
+  if (type->tag == KOOPA_RTT_INT32 || type->tag == KOOPA_RTT_POINTER) {
     return 4;
   } else if (type->tag == KOOPA_RTT_ARRAY) {
     return get_type_width(type->data.array.base) * type->data.array.len;
@@ -15,4 +15,4 @@ inline int get_type_width(const koopa_raw_type_t& type){
   }
 }
 
-}; // namespace KOOPA
+};  // namespace KOOPA

@@ -4,6 +4,6 @@ debug/*
 
 backend_legacy/*
 
-.*
+.vscode/*
 
 playground/*

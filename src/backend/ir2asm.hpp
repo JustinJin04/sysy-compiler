@@ -4,7 +4,7 @@
 #include "genASM.hpp"
 #include <fstream>
 
-void IR_to_ASM(std::unique_ptr<std::string>& ir, const std::string& file_name){
+void IR_to_ASM(std::unique_ptr<std::string>& ir, const std::string& file_name) {
   // ir to raw program
   koopa_program_t program;
   koopa_error_code_t ret = koopa_parse_from_string(ir->c_str(), &program);

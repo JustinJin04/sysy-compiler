@@ -19,7 +19,6 @@ void ArrayInitVal::accept(Visitor& v) { v.visit(*this); }
 void ArrayDims::accept(Visitor& v) { v.visit(*this); }
 void FuncFParamArr::accept(Visitor& v) { v.visit(*this); }
 
-
 void RetStmt::accept(Visitor& v) { v.visit(*this); }
 void AssignStmt::accept(Visitor& v) { v.visit(*this); }
 void ExpStmt::accept(Visitor& v) { v.visit(*this); }
